@@ -76,6 +76,11 @@ class HUDManager {
     // Start GPS high-precision watch
     this.startGPSWatch();
 
+    // Prevent phone screen from turning off while driving (Screen Wake Lock)
+    if (window.deviceManager) {
+      window.deviceManager.requestWakeLock('โหมดขับขี่ HUD');
+    }
+
     // Voice announcement
     window.voiceManager.speak('เข้าสู่โหมดขับขี่เสมือนจริง ขอให้เดินทางโดยสวัสดิภาพค่ะ');
     window.soundManager.playSuccess();
@@ -90,6 +95,11 @@ class HUDManager {
     this.isActive = false;
     hudOverlay.classList.remove('active');
     document.body.classList.remove('in-hud-mode');
+
+    // Release Screen Wake Lock
+    if (window.deviceManager) {
+      window.deviceManager.releaseWakeLock();
+    }
 
     if (this.watchId) {
       navigator.geolocation.clearWatch(this.watchId);

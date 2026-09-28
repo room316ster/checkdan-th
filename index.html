@@ -29,7 +29,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body>
 
@@ -56,6 +56,13 @@
         <span>โหมดขับขี่ HUD</span>
       </button>
 
+      <!-- Voice Personality Style Selector -->
+      <select id="voice-style-select" class="header-select-pill" title="เลือกบุคลิกเสียงพูดเตือน">
+        <option value="sweet">👩 สาวหวาน</option>
+        <option value="police">👮 ผู้การทางหลวง</option>
+        <option value="esan">🌾 สำเนียงอีสาน</option>
+      </select>
+
       <!-- Thai Voice Alerts Toggle -->
       <button id="btn-voice-toggle" class="header-btn icon-only active" title="เปิด/ปิด เสียงพูดเตือนภาษาไทย (Thai Voice Alert)">
         <i class="fa-solid fa-comment-dots"></i>
@@ -64,6 +71,11 @@
       <!-- Audio Mute/Unmute toggle -->
       <button id="btn-sound-toggle" class="header-btn icon-only" title="เปิด/ปิด เสียงเตือนเรดาร์">
         <i class="fa-solid fa-volume-high"></i>
+      </button>
+
+      <!-- Vibration Haptic Toggle Button -->
+      <button id="btn-vibrate-toggle" class="header-btn icon-only active" title="เปิด/ปิด ระบบสั่นเตือนบนมือถือ (Haptic Vibration)">
+        <i class="fa-solid fa-mobile-screen-button"></i>
       </button>
 
       <!-- Emergency SOS Hotlines -->
@@ -78,10 +90,22 @@
         <span>พิกัดฉัน</span>
       </button>
 
-      <!-- GitHub Sync & Settings -->
-      <button id="btn-github-settings" class="header-btn btn-github" title="ตั้งค่าและซิงค์ข้อมูลกับ GitHub">
+      <!-- GitHub Sync & Settings (Admin Only) -->
+      <button id="btn-github-settings" class="header-btn btn-github" title="ตั้งค่าและซิงค์ข้อมูลกับ GitHub (เฉพาะผู้ดูแลระบบ)" style="display: none;">
         <i class="fa-brands fa-github"></i>
         <span>GitHub</span>
+        <span class="admin-pill-tag">Admin</span>
+      </button>
+
+      <!-- Admin Change Password Header Button (Admin Only) -->
+      <button id="btn-header-change-pass" class="header-btn btn-admin-header-key" title="เปลี่ยนรหัสผ่านผู้ดูแลระบบ (Change Admin Password)" style="display: none;">
+        <i class="fa-solid fa-key"></i>
+        <span>เปลี่ยนรหัสผ่าน</span>
+      </button>
+
+      <!-- Admin Access Toggle / Login Button -->
+      <button id="btn-admin-auth" class="header-btn btn-admin-auth icon-only" title="เข้าสู่ระบบผู้ดูแล (Admin Access)">
+        <i class="fa-solid fa-lock" id="admin-lock-icon"></i>
       </button>
 
       <!-- Primary Action: Report Checkpoint -->
@@ -89,6 +113,58 @@
         <i class="fa-solid fa-plus-circle"></i>
         <span>แจ้งด่าน</span>
       </button>
+
+      <!-- Mobile Quick Overflow Menu Button -->
+      <button id="btn-mobile-menu" class="header-btn icon-only mobile-only-btn" title="เมนูเพิ่มเติม">
+        <i class="fa-solid fa-ellipsis-vertical"></i>
+      </button>
+    </div>
+
+    <!-- Mobile Quick More Dropdown Menu -->
+    <div class="mobile-more-dropdown" id="mobile-more-dropdown">
+      <div class="mobile-menu-header">
+        <span class="menu-title"><i class="fa-solid fa-sliders"></i> ตั้งค่าด่วนอุปกรณ์</span>
+      </div>
+      <div class="mobile-menu-list">
+        <button class="mobile-menu-item" id="menu-item-vibrate">
+          <i class="fa-solid fa-mobile-screen-button" style="color: var(--neon-cyan);"></i>
+          <div class="menu-item-text">
+            <span class="title">ระบบสั่นเตือน (Haptics)</span>
+            <span class="sub">สั่นเตือนเมื่อพบด่าน/กล้อง</span>
+          </div>
+          <span class="menu-status-pill active" id="menu-vibrate-pill">เปิด</span>
+        </button>
+        <button class="mobile-menu-item" id="menu-item-wakelock">
+          <i class="fa-solid fa-sun" style="color: var(--neon-amber);"></i>
+          <div class="menu-item-text">
+            <span class="title">ป้องกันหน้าจอดับ (Wake Lock)</span>
+            <span class="sub">จอสว่างต่อเนื่องขณะขับขี่</span>
+          </div>
+          <span class="menu-status-pill wakelock-status-badge">เปิดอัตโนมัติ</span>
+        </button>
+        <div class="mobile-menu-divider"></div>
+        <div class="mobile-menu-row">
+          <span style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-volume-high"></i> เสียงเตือนเรดาร์</span>
+          <button id="btn-menu-sound-toggle" class="header-btn icon-only" style="width: 32px; height: 32px;" onclick="document.getElementById('btn-sound-toggle').click();">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+        </div>
+        <div class="mobile-menu-row">
+          <span style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-comment-dots"></i> เสียงพูดภาษาไทย</span>
+          <button id="btn-menu-voice-toggle" class="header-btn icon-only active" style="width: 32px; height: 32px;" onclick="document.getElementById('btn-voice-toggle').click();">
+            <i class="fa-solid fa-comment-dots"></i>
+          </button>
+        </div>
+        <div class="mobile-menu-divider"></div>
+        <button class="mobile-menu-item" onclick="document.getElementById('btn-admin-auth').click();">
+          <i class="fa-solid fa-lock" style="color: #a78bfa;"></i>
+          <div class="menu-item-text">
+            <span class="title">ผู้ดูแลระบบ (Admin)</span>
+            <span class="sub">จัดการข้อมูลและซิงค์ GitHub</span>
+          </div>
+          <i class="fa-solid fa-chevron-right" style="font-size: 11px; color: var(--text-dim);"></i>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -99,6 +175,21 @@
     
     <!-- Sidebar: Checkpoints List, Search, 77 Provinces & Route Scanner -->
     <aside class="app-sidebar" id="sidebar">
+
+      <!-- Mobile Sheet Drag Handle & Header -->
+      <div class="mobile-sheet-header" id="mobile-sheet-header">
+        <div class="mobile-sheet-handle">
+          <div class="drag-bar"></div>
+        </div>
+        <div class="mobile-sheet-title-row">
+          <span class="mobile-sheet-title" id="mobile-sheet-title">
+            <i class="fa-solid fa-shield-halved" style="color: var(--neon-cyan);"></i> รายการจุดตรวจด่าน
+          </span>
+          <button class="mobile-sheet-btn-close" id="btn-close-mobile-sheet" title="ย่อหน้าต่างลง">
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+        </div>
+      </div>
       
       <!-- Top Navigation Tabs (รายการจุดตรวจ VS วางแผนเส้นทาง) -->
       <div class="sidebar-nav-tabs">
@@ -264,6 +355,18 @@
                 </div>
               </div>
 
+              <!-- Big Turn-by-Turn Navigation Action Button -->
+              <button id="btn-start-navigation" class="btn-start-navigation-action" title="เปิดระบบนำทางแบบ Google Maps พร้อมเสียงเตือน">
+                <i class="fa-solid fa-diamond-turn-right"></i>
+                <span>เริ่มการนำทางแบบเลี้ยวต่อเลี้ยว (Turn-by-Turn)</span>
+              </button>
+
+              <!-- View Route Steps Sidebar Button -->
+              <button id="btn-view-route-steps-sidebar" class="btn-secondary-route-steps" title="เปิดดูแท็บขั้นตอนเส้นทางแบบละเอียด">
+                <i class="fa-solid fa-list-ol"></i>
+                <span>📋 แท็บขั้นตอนการเดินทาง (Route Steps)</span>
+              </button>
+
               <div class="route-stats-grid">
                 <div class="route-stat-item">
                   <span class="val" id="route-stat-distance">-</span>
@@ -311,7 +414,119 @@
         <!-- Injected dynamically by JS -->
       </div>
 
-      <!-- Floating Map Theme Switcher -->
+      <!-- Dedicated Accident Blackspot & Sharp Curve Warning Banner -->
+      <div class="blackspot-radar-banner" id="blackspot-radar-hud">
+        <!-- Injected dynamically by JS -->
+      </div>
+
+      <!-- Google Maps Style Turn-by-Turn Navigation Header Banner -->
+      <div class="nav-turn-banner" id="nav-turn-banner">
+        <div class="nav-maneuver-icon-box">
+          <i id="nav-maneuver-icon" class="fa-solid fa-arrow-turn-up-right"></i>
+        </div>
+        <div class="nav-maneuver-content">
+          <div class="nav-dist-big" id="nav-maneuver-dist">450 ม.</div>
+          <div class="nav-instruction-text" id="nav-maneuver-text">มุ่งหน้าตรงไปตามเส้นทางหลัก</div>
+          <div class="nav-sub-instruction" id="nav-next-maneuver">จากนั้น: เบี่ยงขวาเข้าสู่ทางหลวงสายหลัก</div>
+        </div>
+        <div class="nav-top-actions">
+          <button id="btn-show-steps-top" class="nav-btn-icon" title="ดูแท็บขั้นตอนเส้นทาง">
+            <i class="fa-solid fa-list-ol"></i>
+          </button>
+          <button id="btn-exit-nav-top" class="nav-btn-exit" title="ออกจากการนำทาง">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Google Maps Style Turn-by-Turn Navigation Bottom Trip Bar -->
+      <div class="nav-bottom-bar" id="nav-bottom-bar">
+        <!-- Pull handle for opening route steps sheet -->
+        <div class="nav-sheet-handle" id="nav-sheet-handle" title="แตะหรือดึงขึ้นเพื่อดูแท็บขั้นตอนเส้นทาง">
+          <div class="handle-bar"></div>
+        </div>
+
+        <div class="nav-trip-stats-wrap">
+          <div class="nav-stat-chip highlight">
+            <span class="val" id="nav-stat-rem-time">-- นาที</span>
+            <span class="lbl">เวลาที่เหลือ</span>
+          </div>
+          <div class="nav-stat-chip">
+            <span class="val" id="nav-stat-rem-dist">-- กม.</span>
+            <span class="lbl">ระยะทาง</span>
+          </div>
+          <div class="nav-stat-chip">
+            <span class="val" id="nav-stat-eta">--:-- น.</span>
+            <span class="lbl">ถึงโดยประมาณ</span>
+          </div>
+          <div class="nav-stat-chip">
+            <span class="val" id="nav-stat-speed" style="color: var(--neon-cyan);">0 กม./ชม.</span>
+            <span class="lbl">ความเร็ว</span>
+          </div>
+        </div>
+
+        <!-- Real GPS Mode vs Simulation Mode Status & Action Buttons -->
+        <div class="nav-bottom-actions">
+          <div class="nav-mode-badge" id="nav-mode-badge" title="สถานะโหมดนำทาง">
+            <span class="pulse-dot"></span>
+            <span id="nav-mode-text">🛰️ GPS สด</span>
+          </div>
+          <button id="btn-toggle-steps-sheet" class="btn-nav-action-blue" title="ดูแท็บขั้นตอนเส้นทาง (Google Maps Route Steps)">
+            <i class="fa-solid fa-list-ol"></i> <span>ขั้นตอน</span>
+          </button>
+          <button id="btn-toggle-nav-sim" class="btn-nav-action-amber" title="ทดสอบขับจำลอง (Demo Simulation)">
+            <i class="fa-solid fa-play"></i> <span id="nav-sim-btn-text">ขับจำลอง</span>
+          </button>
+          <button id="btn-stop-navigation" class="btn-stop-nav-red" title="ยกเลิกการนำทาง">
+            <i class="fa-solid fa-xmark"></i> <span>หยุด</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Google Maps Style Turn-by-Turn Route Steps Drawer / Bottom Sheet -->
+      <div class="nav-route-sheet" id="nav-route-sheet">
+        <div class="nav-route-sheet-header">
+          <div class="sheet-drag-handle" id="sheet-close-handle">
+            <div class="drag-bar"></div>
+          </div>
+          <div class="sheet-title-row">
+            <div class="sheet-dest-info">
+              <div class="sheet-tag"><i class="fa-solid fa-route"></i> รายการขั้นตอนเส้นทาง (Google Maps Route)</div>
+              <h3 class="sheet-dest-title" id="sheet-dest-title">มุ่งหน้าสู่จุดหมายปลายทาง</h3>
+              <div class="sheet-meta-info" id="sheet-meta-info">
+                <span id="sheet-total-dist">-- กม.</span> • <span id="sheet-total-time">-- นาที</span> • ถึงประมาณ <span id="sheet-eta-time">--:-- น.</span>
+              </div>
+            </div>
+            <button class="sheet-close-btn" id="btn-close-route-sheet" title="ย่อแท็บขั้นตอนลง">
+              <i class="fa-solid fa-chevron-down"></i>
+            </button>
+          </div>
+
+          <!-- Quick Filter Tabs inside Steps Sheet -->
+          <div class="sheet-filters">
+            <button class="sheet-filter-btn active" data-filter="all">
+              <span>ทั้งหมด</span> (<span id="sheet-count-all">0</span>)
+            </button>
+            <button class="sheet-filter-btn" data-filter="checkpoints">
+              <i class="fa-solid fa-shield-halved" style="color: var(--neon-cyan);"></i> ด่านตรวจ (<span id="sheet-count-cp">0</span>)
+            </button>
+            <button class="sheet-filter-btn" data-filter="cameras">
+              <i class="fa-solid fa-camera" style="color: var(--neon-amber);"></i> กล้องความเร็ว (<span id="sheet-count-cam">0</span>)
+            </button>
+            <button class="sheet-filter-btn" data-filter="blackspots">
+              <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i> จุดเสี่ยง (<span id="sheet-count-bs">0</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Steps List Container -->
+        <div class="nav-route-steps-scroll" id="nav-route-steps-list">
+          <!-- Rendered dynamically by NavigationManager -->
+        </div>
+      </div>
+
+
+      <!-- Floating Map Theme Switcher & Layer Toggles -->
       <div class="map-floating-tools">
         <div class="floating-glass-panel">
           <button class="theme-btn active" data-theme="dark" title="โหมดกลางคืน (Cyber Dark)">
@@ -322,6 +537,16 @@
           </button>
           <button class="theme-btn" data-theme="satellite" title="ภาพถ่ายดาวเทียม">
             <i class="fa-solid fa-satellite"></i> ดาวเทียม
+          </button>
+        </div>
+
+        <!-- Real-time Traffic & Blackspot Hazard Layer Toggles -->
+        <div class="floating-glass-panel">
+          <button id="btn-toggle-traffic" class="layer-toggle-btn" title="เปิด/ปิด เลเยอร์สภาพจราจรแบบเรียลไทม์">
+            <i class="fa-solid fa-traffic-light"></i> <span>จราจร</span>
+          </button>
+          <button id="btn-toggle-blackspots" class="layer-toggle-btn active" title="เปิด/ปิด จุดเสี่ยงอุบัติเหตุและทางโค้งอันตราย">
+            <i class="fa-solid fa-triangle-exclamation"></i> <span>จุดเสี่ยง</span>
           </button>
         </div>
 
@@ -646,11 +871,31 @@
         <h3 class="modal-title">
           <i class="fa-brands fa-github" style="color: #ffffff;"></i>
           ตั้งค่าการซิงค์ข้อมูลกับ GitHub & GitHub Pages
+          <span class="admin-pill-tag"><i class="fa-solid fa-shield-halved"></i> Admin Only</span>
         </h3>
         <button class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
         
+        <!-- Admin Authentication Status Banner -->
+        <div class="admin-banner-card">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-shield-halved" style="color: #a78bfa; font-size: 20px;"></i>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: #ffffff;">โหมดผู้ดูแลระบบ (Admin Authenticated)</div>
+              <div style="font-size: 11px; color: #cbd5e1;">คุณมีสิทธิ์เข้าถึงและปรับปรุงการตั้งค่าคลังข้อมูล GitHub</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button type="button" id="btn-admin-change-pass-banner" class="header-btn" style="padding: 4px 10px; font-size: 11px; color: #c4b5fd; border-color: rgba(139,92,246,0.4);" title="เปลี่ยนรหัสผ่าน Admin">
+              <i class="fa-solid fa-key"></i> เปลี่ยนรหัสผ่าน
+            </button>
+            <button type="button" id="btn-admin-logout" class="header-btn" style="padding: 4px 10px; font-size: 11px; color: #f87171; border-color: rgba(239,68,68,0.4);" title="ออกจากระบบ Admin">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i> ออกจากระบบ
+            </button>
+          </div>
+        </div>
+
         <div class="github-guide-card">
           <b>🚀 วิธีนำเว็บนี้ขึ้น GitHub Pages ให้คนอื่นใช้งานได้ฟรี:</b>
           <ol>
@@ -693,15 +938,15 @@
             <input type="password" id="gh-token" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
           </div>
 
-          <button type="submit" class="header-btn" style="width: 100%; justify-content: center; margin-top: 4px;">
+          <button type="submit" class="header-btn" style="width: 100%; justify-content: center; margin-top: 4px; background: rgba(139,92,246,0.2); border-color: #8b5cf6; color: #e9d5ff;">
             <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า GitHub
           </button>
         </form>
 
-        <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 6px 0;">
+        <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 8px 0;">
 
         <div style="display: flex; flex-direction: column; gap: 8px;">
-          <h4 style="font-size: 13px; color: var(--text-muted);">เครื่องมือจัดการข้อมูล:</h4>
+          <h4 style="font-size: 13px; color: var(--text-muted);">เครื่องมือจัดการข้อมูลผู้ดูแลระบบ:</h4>
           
           <!-- Download checkpoints.json -->
           <button type="button" class="header-btn" id="btn-export-json" style="width: 100%; justify-content: center;">
@@ -711,6 +956,11 @@
           <!-- Push to GitHub API directly -->
           <button type="button" class="header-btn" id="btn-push-github-api" style="width: 100%; justify-content: center; border-color: rgba(0,242,254,0.3); color: var(--neon-cyan);">
             <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลขึ้น GitHub Repo (ผ่าน API)
+          </button>
+
+          <!-- Change Admin Password -->
+          <button type="button" class="header-btn" id="btn-admin-change-pass" style="width: 100%; justify-content: center; color: #c4b5fd; border-color: rgba(139,92,246,0.35);">
+            <i class="fa-solid fa-key"></i> เปลี่ยนรหัสผ่าน Admin
           </button>
 
           <!-- Reset data -->
@@ -726,6 +976,169 @@
     </div>
   </div>
 
+  <!-- ========================================================================
+       Modal 4.5: Admin Login & Authentication Dialog
+       ======================================================================== -->
+  <div class="app-modal" id="admin-login-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: #a78bfa;">
+          <i class="fa-solid fa-shield-halved"></i>
+          เข้าสู่ระบบผู้ดูแลระบบ (Admin)
+        </h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: #cbd5e1; margin-bottom: 14px; line-height: 1.5;">
+          ปุ่มการตั้งค่า <b>GitHub</b> และการจัดการฐานข้อมูลหลัก สงวนสิทธิ์สำหรับ <b>ผู้ดูแลระบบ (Admin)</b> เท่านั้น เพื่อป้องกันการแก้ไขโดยไม่ได้รับอนุญาต
+        </p>
+
+        <form id="admin-login-form">
+          <div class="form-group">
+            <label class="form-label">รหัสผ่านผู้ดูแลระบบ (Admin Password)</label>
+            <div style="position: relative;">
+              <input type="password" id="admin-password-input" class="form-control" placeholder="กรอกรหัสผ่าน Admin..." required style="padding-right: 42px;">
+              <button type="button" id="btn-toggle-admin-eye" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">
+                <i class="fa-solid fa-eye" id="admin-eye-icon"></i>
+              </button>
+            </div>
+            <div id="admin-login-error" style="color: #ef4444; font-size: 12px; margin-top: 6px; display: none;">
+              <i class="fa-solid fa-circle-exclamation"></i> รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง
+            </div>
+          </div>
+
+          <button type="submit" class="header-btn" style="width: 100%; justify-content: center; background: #8b5cf6; border-color: #a78bfa; color: #ffffff; font-weight: 700; padding: 10px;">
+            <i class="fa-solid fa-lock-open"></i> ยืนยันเพื่อเข้าสู่ระบบ
+          </button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="header-btn modal-close">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Modal 4.6: Admin Change Password Dialog
+       ======================================================================== -->
+  <div class="app-modal" id="admin-change-password-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: #a78bfa;">
+          <i class="fa-solid fa-key"></i>
+          เปลี่ยนรหัสผ่านผู้ดูแลระบบ (Change Password)
+        </h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: #cbd5e1; margin-bottom: 14px; line-height: 1.4;">
+          กำหนดรหัสผ่านใหม่สำหรับเข้าถึงฟังก์ชันผู้ดูแลระบบ (Admin)
+        </p>
+
+        <form id="admin-change-password-form">
+          <div class="form-group">
+            <label class="form-label">รหัสผ่านปัจจุบัน (Current Password)</label>
+            <div style="position: relative;">
+              <input type="password" id="admin-old-pass-input" class="form-control" placeholder="กรอกรหัสผ่านปัจจุบัน..." required style="padding-right: 42px;">
+              <button type="button" class="btn-toggle-eye" data-target="admin-old-pass-input" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">รหัสผ่านใหม่ (New Password)</label>
+            <div style="position: relative;">
+              <input type="password" id="admin-new-pass-input" class="form-control" placeholder="ตั้งรหัสผ่านใหม่อย่างน้อย 4 ตัวอักษร..." required minlength="4" style="padding-right: 42px;">
+              <button type="button" class="btn-toggle-eye" data-target="admin-new-pass-input" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ยืนยันรหัสผ่านใหม่อีกครั้ง (Confirm New Password)</label>
+            <div style="position: relative;">
+              <input type="password" id="admin-confirm-pass-input" class="form-control" placeholder="กรอกรหัสผ่านใหม่อีกครั้ง..." required minlength="4" style="padding-right: 42px;">
+              <button type="button" class="btn-toggle-eye" data-target="admin-confirm-pass-input" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+            <div id="admin-change-error" style="color: #ef4444; font-size: 12px; margin-top: 6px; display: none;"></div>
+          </div>
+
+          <button type="submit" class="header-btn" style="width: 100%; justify-content: center; background: #8b5cf6; border-color: #a78bfa; color: #ffffff; font-weight: 700; padding: 10px; margin-top: 8px;">
+            <i class="fa-solid fa-check"></i> บันทึกรหัสผ่านใหม่
+          </button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="header-btn modal-close">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Trip Summary & Driving Analytics -->
+  <div class="app-modal" id="trip-summary-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fa-solid fa-flag-checkered" style="color: var(--neon-cyan);"></i>
+          สรุปข้อมูลการเดินทาง (Trip Analytics)
+        </h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="trip-summary-card">
+          <div class="trip-summary-badge">
+            <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> เดินทางถึงจุดหมายโดยสวัสดิภาพ
+          </div>
+          <div class="trip-metrics-grid">
+            <div class="trip-metric-item">
+              <span class="metric-val" id="trip-stat-dist">0.0 กม.</span>
+              <span class="metric-lbl">ระยะทางรวม</span>
+            </div>
+            <div class="trip-metric-item">
+              <span class="metric-val" id="trip-stat-time">0 นาที</span>
+              <span class="metric-lbl">เวลาเดินทาง</span>
+            </div>
+            <div class="trip-metric-item">
+              <span class="metric-val" id="trip-stat-avgspd">0 กม./ชม.</span>
+              <span class="metric-lbl">ความเร็วเฉลี่ย</span>
+            </div>
+            <div class="trip-metric-item">
+              <span class="metric-val" id="trip-stat-maxspd">0 กม./ชม.</span>
+              <span class="metric-lbl">ความเร็วสูงสุด</span>
+            </div>
+            <div class="trip-metric-item">
+              <span class="metric-val" id="trip-stat-cpcount">0 จุด</span>
+              <span class="metric-lbl">ด่านที่ขับผ่าน</span>
+            </div>
+            <div class="trip-metric-item">
+              <span class="metric-val" id="trip-stat-camcount">0 ตัว</span>
+              <span class="metric-lbl">กล้องตรวจจับ</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="trip-share-actions">
+          <button id="btn-share-trip-line" class="btn-share-social line">
+            <i class="fa-brands fa-line"></i> แชร์สรุปทริปไป LINE
+          </button>
+          <button id="btn-share-trip-fb" class="btn-share-social fb">
+            <i class="fa-brands fa-facebook"></i> แชร์ลง Facebook
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="header-btn modal-close">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PWA Install Smart Prompt Banner -->
   <div class="pwa-install-banner" id="pwa-install-banner">
     <i class="fa-solid fa-mobile-screen-button" style="color: var(--neon-cyan); font-size: 20px;"></i>
@@ -737,6 +1150,37 @@
     <button class="pwa-btn-close" id="btn-pwa-close">&times;</button>
   </div>
 
+  <!-- ========================================================================
+       Mobile Bottom Navigation Bar (Modern Adaptive App Bar for Mobile Devices)
+       ======================================================================== -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+    <button class="mobile-nav-btn active" data-tab="map" id="mob-nav-map" title="มุมมองแผนที่เต็มจอ">
+      <i class="fa-solid fa-map-location-dot"></i>
+      <span>แผนที่</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="checkpoints" id="mob-nav-checkpoints" title="ดูรายการจุดตรวจด่านทั้งหมด">
+      <div class="nav-icon-badge-wrap">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span class="nav-badge-pill" id="mob-badge-active">0</span>
+      </div>
+      <span>จุดตรวจ</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="route" id="mob-nav-route" title="วางแผนเส้นทางและสแกนด่าน">
+      <i class="fa-solid fa-route"></i>
+      <span>สแกนทาง</span>
+    </button>
+    <button class="mobile-nav-btn highlight-hud" data-tab="hud" id="mob-nav-hud" title="เปิดโหมดขับขี่ HUD พร้อมกันจอดับ">
+      <div class="nav-hud-icon-wrap">
+        <i class="fa-solid fa-gauge-high"></i>
+      </div>
+      <span>ขับขี่ HUD</span>
+    </button>
+    <button class="mobile-nav-btn" data-tab="sos" id="mob-nav-sos" title="เบอร์โทรฉุกเฉิน 24 ชม.">
+      <i class="fa-solid fa-phone-volume"></i>
+      <span>ฉุกเฉิน</span>
+    </button>
+  </nav>
+
   <!-- Toast Notification Container -->
   <div class="toast" id="app-toast"></div>
 
@@ -747,17 +1191,22 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Application Logic & Extension Modules -->
-  <script src="js/provinces-data.js?v=6"></script>
-  <script src="js/mock-data.js?v=6"></script>
-  <script src="js/audio.js?v=6"></script>
-  <script src="js/voice.js?v=6"></script>
-  <script src="js/hud.js?v=6"></script>
-  <script src="js/sos.js?v=6"></script>
-  <script src="js/social.js?v=6"></script>
-  <script src="js/github-sync.js?v=6"></script>
-  <script src="js/routing.js?v=6"></script>
-  <script src="js/map.js?v=6"></script>
-  <script src="js/app.js?v=6"></script>
+  <script src="js/provinces-data.js?v=11"></script>
+  <script src="js/mock-data.js?v=11"></script>
+  <script src="js/audio.js?v=11"></script>
+  <script src="js/device.js?v=11"></script>
+  <script src="js/voice.js?v=11"></script>
+  <script src="js/hud.js?v=11"></script>
+  <script src="js/sos.js?v=11"></script>
+  <script src="js/social.js?v=11"></script>
+  <script src="js/github-sync.js?v=11"></script>
+  <script src="js/routing.js?v=11"></script>
+  <script src="js/blackspots.js?v=11"></script>
+  <script src="js/traffic.js?v=11"></script>
+  <script src="js/trip-logger.js?v=11"></script>
+  <script src="js/navigation.js?v=11"></script>
+  <script src="js/map.js?v=11"></script>
+  <script src="js/app.js?v=11"></script>
 
 </body>
 </html>

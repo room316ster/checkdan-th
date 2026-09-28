@@ -51,6 +51,11 @@ class SoundManager {
 
   // Play proximity alert chime (when within 2km of a checkpoint)
   playWarningAlert() {
+    // Trigger mobile haptic vibration
+    if (window.deviceManager) {
+      window.deviceManager.vibrateRadarAlert();
+    }
+
     if (!this.enabled) return;
     try {
       this.init();
@@ -81,6 +86,11 @@ class SoundManager {
 
   // Distinctive Speed Camera & Laser Radar Detector Alert Tone (Fast sharp chirps)
   playSpeedRadarAlert() {
+    // Trigger mobile haptic vibration for speed camera / laser
+    if (window.deviceManager) {
+      window.deviceManager.vibrateSpeedCameraAlert();
+    }
+
     if (!this.enabled) return;
     try {
       this.init();
@@ -112,6 +122,11 @@ class SoundManager {
 
   // Success confirmation tone (e.g. checkpoint reported or voted)
   playSuccess() {
+    // Trigger mobile haptic confirmation
+    if (window.deviceManager) {
+      window.deviceManager.vibrateSuccess();
+    }
+
     if (!this.enabled) return;
     try {
       this.init();

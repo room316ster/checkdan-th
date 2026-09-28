@@ -10,6 +10,7 @@ class CheckDanApp {
     this.radarDistanceThresholdKm = 3.0;
     this.activeTab = 'checkpoints';
     this.deferredPwaPrompt = null;
+    this.isAdmin = false;
   }
 
   async init() {
@@ -28,11 +29,16 @@ class CheckDanApp {
     await this.refreshData();
 
     // 4. Initialize Extension Modules
+    if (window.deviceManager) window.deviceManager.init();
     if (window.hudManager) window.hudManager.init();
     if (window.sosManager) window.sosManager.init();
+    if (window.blackspotManager) await window.blackspotManager.init(window.mapManager.map);
+    if (window.trafficManager) window.trafficManager.init(window.mapManager.map);
+    if (window.navigationManager) window.navigationManager.init();
 
-    // 5. Bind UI Events
+    // 5. Bind UI Events & Admin Security
     this.bindEvents();
+    this.initAdminSecurity();
 
     // 6. Register PWA Service Worker & Install Prompt
     this.initPWA();
@@ -264,6 +270,87 @@ class CheckDanApp {
       });
     }
 
+    // Start Turn-by-Turn Navigation Button
+    const btnStartNav = document.getElementById('btn-start-navigation');
+    if (btnStartNav) {
+      btnStartNav.addEventListener('click', () => {
+        const route = window.routeManager?.activeRoute || window.lastCalculatedRoute;
+        if (route) {
+          window.navigationManager.startNavigation(route);
+        } else {
+          this.showToast('⚠️ กรุณาสแกนเส้นทางก่อนเริ่มการนำทาง', 'warning');
+        }
+      });
+    }
+
+    // View Route Steps Tab from Sidebar
+    const btnSidebarSteps = document.getElementById('btn-view-route-steps-sidebar');
+    if (btnSidebarSteps) {
+      btnSidebarSteps.addEventListener('click', () => {
+        if (window.navigationManager) {
+          window.navigationManager.toggleRouteSheet(true);
+        }
+      });
+    }
+
+    // Stop / Exit Navigation Buttons
+    const btnStopNav = document.getElementById('btn-stop-navigation');
+    const btnExitTop = document.getElementById('btn-exit-nav-top');
+    [btnStopNav, btnExitTop].forEach(btn => {
+      if (btn) {
+        btn.addEventListener('click', () => {
+          window.navigationManager.stopNavigation();
+        });
+      }
+    });
+
+    // Voice Personality Style Selector
+    const voiceStyleSelect = document.getElementById('voice-style-select');
+    if (voiceStyleSelect) {
+      voiceStyleSelect.value = window.voiceManager.currentStyle || 'sweet';
+      voiceStyleSelect.addEventListener('change', (e) => {
+        window.voiceManager.setVoiceStyle(e.target.value);
+        this.showToast(`🗣️ เปลี่ยนรูปแบบเสียง: ${e.target.options[e.target.selectedIndex].text}`, 'info');
+      });
+    }
+
+    // Live Traffic Toggle
+    const btnTraffic = document.getElementById('btn-toggle-traffic');
+    if (btnTraffic) {
+      btnTraffic.addEventListener('click', () => {
+        const isEnabled = window.trafficManager.toggleTraffic(window.mapManager.map);
+        btnTraffic.classList.toggle('active', isEnabled);
+      });
+    }
+
+    // Blackspots Hazard Toggle
+    const btnBlackspots = document.getElementById('btn-toggle-blackspots');
+    if (btnBlackspots) {
+      btnBlackspots.addEventListener('click', () => {
+        const isVisible = window.blackspotManager.toggleLayer(window.mapManager.map);
+        btnBlackspots.classList.toggle('active', isVisible);
+        this.showToast(isVisible ? '⚠️ แสดงหมุดจุดเสี่ยงอุบัติเหตุ' : 'ซ่อนหมุดจุดเสี่ยงอุบัติเหตุ', 'info');
+      });
+    }
+
+    // Trip Summary Share Actions
+    const btnShareLine = document.getElementById('btn-share-trip-line');
+    if (btnShareLine) {
+      btnShareLine.addEventListener('click', () => {
+        const dist = document.getElementById('trip-stat-dist')?.textContent || '0 กม.';
+        const time = document.getElementById('trip-stat-time')?.textContent || '0 นาที';
+        const text = encodeURIComponent(`🚗 สรุปการเดินทางด้วย CheckDan TH\nระยะทาง: ${dist} | เวลา: ${time}\nเดินทางปลอดภัย ไร้ด่าน ตรวจเช็กเรียลไทม์ที่: https://checkdan.th`);
+        window.open(`https://line.me/R/msg/text/?${text}`, '_blank');
+      });
+    }
+
+    const btnShareFb = document.getElementById('btn-share-trip-fb');
+    if (btnShareFb) {
+      btnShareFb.addEventListener('click', () => {
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank');
+      });
+    }
+
     // Clear Route Button
     const btnClearRoute = document.getElementById('btn-clear-route');
     if (btnClearRoute) {
@@ -323,7 +410,13 @@ class CheckDanApp {
 
     // Modal close buttons
     document.querySelectorAll('.modal-close, .modal-backdrop').forEach((el) => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        const changeModal = el.closest('#admin-change-password-modal');
+        if (changeModal) {
+          e.stopPropagation();
+          changeModal.classList.remove('show');
+          return;
+        }
         this.closeAllModals();
       });
     });
@@ -441,6 +534,19 @@ class CheckDanApp {
     }
   }
 
+  // Calculate route and start Turn-by-Turn navigation directly to specified coordinates
+  startNavigationToCoords(lat, lng, title) {
+    let originCoords = window.mapManager.userCoords || { lat: 13.7563, lng: 100.5018 };
+    this.showToast(`🚗 กำลังคำนวณเส้นทางไป ${title}...`, 'info');
+    window.routeManager.calculateRoute(originCoords, { lat, lng }, this.checkpoints).then(route => {
+      window.routeManager.drawRouteOnMap(window.mapManager.map);
+      window.navigationManager.startNavigation(route);
+    }).catch(err => {
+      console.warn('Navigation route failed:', err);
+      this.showToast('❌ ไม่สามารถคำนวณเส้นทางนำทางได้', 'error');
+    });
+  }
+
   renderRouteResults(route) {
     const wrapper = document.getElementById('route-result-wrapper');
     const distEl = document.getElementById('route-stat-distance');
@@ -453,6 +559,15 @@ class CheckDanApp {
 
     if (distEl) distEl.textContent = `${route.distanceKm.toFixed(1)} กม.`;
     if (durEl) durEl.textContent = window.routeManager.formatDuration(route.durationMin);
+
+    // Pre-populate NavigationManager steps & route sheet
+    if (window.navigationManager) {
+      window.navigationManager.activeRoute = route;
+      window.navigationManager.steps = window.navigationManager.generateTurnSteps(route);
+      window.navigationManager.remainingDistanceKm = route.distanceKm;
+      window.navigationManager.remainingDurationMin = route.durationMin;
+      window.navigationManager.renderRouteSheet();
+    }
 
     const detected = route.detectedCheckpoints || [];
 
@@ -633,6 +748,51 @@ class CheckDanApp {
       alertBanner.classList.remove('visible', 'pulse-alert');
     }
 
+    // 3. Accident Blackspots & Sharp Curves Warning
+    const blackspotBanner = document.getElementById('blackspot-radar-hud');
+    if (window.blackspotManager && blackspotBanner) {
+      const nearestBlackspot = window.blackspotManager.checkBlackspotsProximity(userCoords, 1.5);
+      if (nearestBlackspot) {
+        const distStr = nearestBlackspot.distanceKm < 1 
+          ? `${Math.round(nearestBlackspot.distanceKm * 1000)} เมตร` 
+          : `${nearestBlackspot.distanceKm.toFixed(1)} กิโลเมตร`;
+
+        blackspotBanner.className = 'blackspot-radar-banner visible';
+        blackspotBanner.innerHTML = `
+          <div class="blackspot-radar-icon-box">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="speed-radar-info">
+            <div class="speed-radar-badge-row">
+              <span class="radar-pill red"><i class="fa-solid fa-skull-crossbones"></i> จุดเสี่ยงอุบัติเหตุรุนแรง</span>
+              <span class="radar-pill cyan">จำกัด ${nearestBlackspot.speedLimit} กม./ชม.</span>
+            </div>
+            <div class="speed-radar-title">${nearestBlackspot.title}</div>
+            <div class="speed-radar-loc">${nearestBlackspot.locationName} (${nearestBlackspot.warningText})</div>
+          </div>
+          <div class="speed-radar-limit-box">
+            <div class="mini-speed-limit">${nearestBlackspot.speedLimit}</div>
+            <div class="speed-dist-tag" style="color: #f59e0b;"><i class="fa-solid fa-crosshairs"></i> ${distStr}</div>
+          </div>
+        `;
+
+        window.soundManager.playWarningAlert();
+        window.voiceManager.announceBlackspot(nearestBlackspot, nearestBlackspot.distanceKm);
+      } else {
+        blackspotBanner.classList.remove('visible');
+      }
+    }
+
+    // 4. Log progress to TripLogger
+    if (window.tripLogger && window.tripLogger.isRecording) {
+      if (nearest && nearest.distanceKm <= 0.3) {
+        window.tripLogger.logCheckpointPass(nearest);
+      }
+      if (nearestSpeed && nearestSpeed.distanceKm <= 0.3) {
+        window.tripLogger.logCameraPass(nearestSpeed);
+      }
+    }
+
     // Update HUD display if active
     if (window.hudManager && window.hudManager.isActive) {
       window.hudManager.updateHUDDisplay();
@@ -763,10 +923,12 @@ class CheckDanApp {
     const elTotal = document.getElementById('stat-total');
     const elActive = document.getElementById('stat-active');
     const elCleared = document.getElementById('stat-cleared');
+    const mobActive = document.getElementById('mob-badge-active');
 
     if (elTotal) elTotal.textContent = total;
     if (elActive) elActive.textContent = active;
     if (elCleared) elCleared.textContent = cleared;
+    if (mobActive) mobActive.textContent = active;
   }
 
   flyToAndOpen(checkpointId) {
@@ -776,6 +938,11 @@ class CheckDanApp {
     window.mapManager.flyTo(cp.lat, cp.lng, 15);
     this.highlightCheckpointInList(cp.id);
     this.showCheckpointDetails(checkpointId);
+
+    // If on mobile, collapse sheet so map is visible
+    if (window.deviceManager && window.innerWidth <= 900) {
+      window.deviceManager.closeMobileSheet();
+    }
   }
 
   highlightCheckpointInList(checkpointId) {
@@ -944,7 +1111,264 @@ class CheckDanApp {
     document.getElementById('report-form').reset();
   }
 
+  // ==========================================================================
+  // Admin Authentication & Security System
+  // ==========================================================================
+  initAdminSecurity() {
+    // 1. Check existing session
+    const isSessionAdmin = sessionStorage.getItem('checkdan_is_admin') === 'true';
+    this.setAdminMode(isSessionAdmin);
+
+    // 2. Admin Auth Trigger Button
+    const btnAdminAuth = document.getElementById('btn-admin-auth');
+    if (btnAdminAuth) {
+      btnAdminAuth.addEventListener('click', () => {
+        if (this.isAdmin) {
+          this.openGitHubModal();
+        } else {
+          this.openAdminLoginModal();
+        }
+      });
+    }
+
+    // 3. Admin Login Form Submission
+    const adminForm = document.getElementById('admin-login-form');
+    if (adminForm) {
+      adminForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('admin-password-input');
+        const errDiv = document.getElementById('admin-login-error');
+        const enteredPass = input ? input.value.trim() : '';
+        const savedPass = localStorage.getItem('checkdan_admin_password') || 'admin1234';
+
+        if (enteredPass === savedPass) {
+          sessionStorage.setItem('checkdan_is_admin', 'true');
+          this.setAdminMode(true);
+          if (errDiv) errDiv.style.display = 'none';
+          if (input) input.value = '';
+          this.closeAllModals();
+          this.showToast('🎉 ยินดีต้อนรับ ผู้ดูแลระบบ (Admin Mode Active)', 'success');
+          window.soundManager.playSuccess();
+          this.openGitHubModal();
+        } else {
+          if (errDiv) errDiv.style.display = 'block';
+          window.soundManager.playWarningAlert();
+        }
+      });
+    }
+
+    // 4. Toggle Eye Icon for Admin Password Input
+    const btnEye = document.getElementById('btn-toggle-admin-eye');
+    const eyeInput = document.getElementById('admin-password-input');
+    const eyeIcon = document.getElementById('admin-eye-icon');
+    if (btnEye && eyeInput) {
+      btnEye.addEventListener('click', () => {
+        const isPass = eyeInput.type === 'password';
+        eyeInput.type = isPass ? 'text' : 'password';
+        if (eyeIcon) {
+          eyeIcon.className = isPass ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+        }
+      });
+    }
+
+    // 5. Admin Logout Button
+    const btnLogout = document.getElementById('btn-admin-logout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        sessionStorage.removeItem('checkdan_is_admin');
+        this.setAdminMode(false);
+        this.closeAllModals();
+        this.showToast('🚪 ออกจากระบบ Admin เรียบร้อยแล้ว (ซ่อนปุ่ม GitHub แล้ว)', 'info');
+      });
+    }
+
+    // 6. Change Admin Password Button & Form
+    const openChangePassFn = () => {
+      this.openAdminChangePasswordModal();
+    };
+    const btnChangePass = document.getElementById('btn-admin-change-pass');
+    const btnChangePassBanner = document.getElementById('btn-admin-change-pass-banner');
+    const btnHeaderChangePass = document.getElementById('btn-header-change-pass');
+    if (btnChangePass) btnChangePass.addEventListener('click', openChangePassFn);
+    if (btnChangePassBanner) btnChangePassBanner.addEventListener('click', openChangePassFn);
+    if (btnHeaderChangePass) btnHeaderChangePass.addEventListener('click', openChangePassFn);
+
+    const changePassForm = document.getElementById('admin-change-password-form');
+    if (changePassForm) {
+      changePassForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const oldInput = document.getElementById('admin-old-pass-input');
+        const newInput = document.getElementById('admin-new-pass-input');
+        const confirmInput = document.getElementById('admin-confirm-pass-input');
+        const errDiv = document.getElementById('admin-change-error');
+
+        const oldVal = oldInput ? oldInput.value.trim() : '';
+        const newVal = newInput ? newInput.value.trim() : '';
+        const confirmVal = confirmInput ? confirmInput.value.trim() : '';
+        const currentSavedPass = localStorage.getItem('checkdan_admin_password') || 'admin1234';
+
+        if (oldVal !== currentSavedPass) {
+          if (errDiv) {
+            errDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> รหัสผ่านปัจจุบันไม่ถูกต้อง กรุณาตรวจสอบใหม่อีกครั้ง';
+            errDiv.style.display = 'block';
+          }
+          if (oldInput) {
+            oldInput.focus();
+            oldInput.select();
+          }
+          window.soundManager.playWarningAlert();
+          return;
+        }
+
+        if (newVal.length < 4) {
+          if (errDiv) {
+            errDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 4 ตัวอักษร';
+            errDiv.style.display = 'block';
+          }
+          if (newInput) newInput.focus();
+          window.soundManager.playWarningAlert();
+          return;
+        }
+
+        if (newVal !== confirmVal) {
+          if (errDiv) {
+            errDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> รหัสผ่านใหม่และการยืนยันรหัสผ่านไม่ตรงกัน';
+            errDiv.style.display = 'block';
+          }
+          if (confirmInput) confirmInput.focus();
+          window.soundManager.playWarningAlert();
+          return;
+        }
+
+        // Save new password
+        localStorage.setItem('checkdan_admin_password', newVal);
+        if (errDiv) errDiv.style.display = 'none';
+        changePassForm.reset();
+        
+        const modal = document.getElementById('admin-change-password-modal');
+        if (modal) modal.classList.remove('show');
+
+        this.showToast('🎉 เปลี่ยนรหัสผ่าน Admin เรียบร้อยแล้ว! รหัสผ่านใหม่มีผลทันที', 'success');
+        window.soundManager.playSuccess();
+        window.voiceManager.speak('เปลี่ยนรหัสผ่านผู้ดูแลระบบเรียบร้อยแล้วค่ะ');
+      });
+    }
+
+    // Toggle eye icon for all .btn-toggle-eye
+    document.querySelectorAll('.btn-toggle-eye').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const targetInput = document.getElementById(targetId);
+        const icon = btn.querySelector('i');
+        if (targetInput) {
+          const isPass = targetInput.type === 'password';
+          targetInput.type = isPass ? 'text' : 'password';
+          if (icon) {
+            icon.className = isPass ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+          }
+        }
+      });
+    });
+
+    // 7. Check URL Parameter for ?admin
+    if (window.location.search.includes('admin')) {
+      if (!this.isAdmin) {
+        setTimeout(() => this.openAdminLoginModal(), 600);
+      }
+    }
+
+    // 8. Keyboard Shortcuts: Esc to close & Ctrl + Shift + A to toggle
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const changeModal = document.getElementById('admin-change-password-modal');
+        if (changeModal && changeModal.classList.contains('show')) {
+          changeModal.classList.remove('show');
+          return;
+        }
+        this.closeAllModals();
+      }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        if (this.isAdmin) {
+          this.openGitHubModal();
+        } else {
+          this.openAdminLoginModal();
+        }
+      }
+    });
+  }
+
+  setAdminMode(isAdmin) {
+    this.isAdmin = isAdmin;
+    const ghBtn = document.getElementById('btn-github-settings');
+    const headerPassBtn = document.getElementById('btn-header-change-pass');
+    const authBtn = document.getElementById('btn-admin-auth');
+    const lockIcon = document.getElementById('admin-lock-icon');
+
+    if (ghBtn) {
+      ghBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+      ghBtn.classList.toggle('admin-visible', isAdmin);
+    }
+
+    if (headerPassBtn) {
+      headerPassBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+
+    if (authBtn) {
+      authBtn.classList.toggle('logged-in', isAdmin);
+      authBtn.title = isAdmin 
+        ? 'ผู้ดูแลระบบ (เข้าสู่ระบบแล้ว - คลิกเพื่อจัดการ GitHub / ออกจากระบบ)' 
+        : 'เข้าสู่ระบบผู้ดูแล (Admin Access)';
+    }
+
+    if (lockIcon) {
+      lockIcon.className = isAdmin ? 'fa-solid fa-shield-halved' : 'fa-solid fa-lock';
+    }
+  }
+
+  openAdminLoginModal() {
+    const modal = document.getElementById('admin-login-modal');
+    if (!modal) return;
+    const errDiv = document.getElementById('admin-login-error');
+    const input = document.getElementById('admin-password-input');
+    if (errDiv) errDiv.style.display = 'none';
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 300);
+    }
+    modal.classList.add('show');
+  }
+
+  openAdminChangePasswordModal() {
+    if (!this.isAdmin) {
+      this.showToast('🔒 กรุณาเข้าสู่ระบบ Admin ก่อนทำการเปลี่ยนรหัสผ่าน', 'warning');
+      this.openAdminLoginModal();
+      return;
+    }
+    const modal = document.getElementById('admin-change-password-modal');
+    if (!modal) return;
+    const form = document.getElementById('admin-change-password-form');
+    const errDiv = document.getElementById('admin-change-error');
+    if (form) form.reset();
+    if (errDiv) {
+      errDiv.style.display = 'none';
+      errDiv.textContent = '';
+    }
+    const oldInput = document.getElementById('admin-old-pass-input');
+    if (oldInput) {
+      setTimeout(() => oldInput.focus(), 300);
+    }
+    modal.classList.add('show');
+  }
+
   openGitHubModal() {
+    // SECURITY GUARD: Only Admin can open GitHub Settings!
+    if (!this.isAdmin) {
+      this.showToast('🔒 ส่วนนี้สงวนสิทธิ์เฉพาะผู้ดูแลระบบ (Admin) เท่านั้น', 'warning');
+      this.openAdminLoginModal();
+      return;
+    }
+
     const modal = document.getElementById('github-modal');
     if (!modal) return;
 

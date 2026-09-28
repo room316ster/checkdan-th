@@ -1,5 +1,5 @@
 // CheckDan TH Service Worker for PWA Offline Caching
-const CACHE_NAME = 'checkdan-cache-v4';
+const CACHE_NAME = 'checkdan-cache-v11';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -14,9 +14,14 @@ const ASSETS_TO_CACHE = [
   './js/social.js',
   './js/github-sync.js',
   './js/routing.js',
+  './js/blackspots.js',
+  './js/traffic.js',
+  './js/trip-logger.js',
+  './js/navigation.js',
   './js/map.js',
   './js/app.js',
-  './data/checkpoints.json'
+  './data/checkpoints.json',
+  './data/blackspots.json'
 ];
 
 self.addEventListener('install', (event) => {

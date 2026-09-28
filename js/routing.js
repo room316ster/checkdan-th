@@ -18,10 +18,14 @@ class RouteManager {
     let distanceKm = 0;
     let durationMin = 0;
 
-    // 1. Try fetching real driving route from public OSRM service
+    // 1. Try fetching real driving route from public OSRM service with 3s timeout
     try {
-      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson&steps=false`;
-      const res = await fetch(osrmUrl);
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson&steps=true`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(osrmUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const data = await res.json();
         if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
@@ -32,10 +36,10 @@ class RouteManager {
         }
       }
     } catch (err) {
-      console.warn('OSRM service failed or unreachable, generating fallback highway curve:', err);
+      console.warn('OSRM service timed out or failed, using high-speed fallback route:', err.message);
     }
 
-    // Fallback highway curve if OSRM is offline
+    // Fallback highway curve if OSRM is offline or timed out
     if (!routeGeoJson) {
       const fallback = this.generateFallbackRoute(origin, dest);
       routeGeoJson = fallback.coordinates;
@@ -58,6 +62,7 @@ class RouteManager {
       detectedCheckpoints: detected
     };
 
+    window.lastCalculatedRoute = this.activeRoute;
     this.isRoutingActive = true;
     return this.activeRoute;
   }
