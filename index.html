@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CheckDan TH - ระบบตรวจสอบและแจ้งเตือนด่านตรวจจราจรอัจฉริยะ (GitHub Pages Ready)</title>
+  <meta name="description" content="เว็บแอพพลิเคชันตรวจสอบจุดตรวจด่านจราจร ด่านเป่าแอลกอฮอล์ ด่านตรวจควันดำ และกล้องจับความเร็วแบบเรียลไทม์ พร้อมระบบเรดาร์เตือนล่วงหน้า และเชื่อมต่อข้อมูลผ่าน GitHub">
+  <meta name="keywords" content="เช็คด่าน, ด่านตรวจ, ด่านแอลกอฮอล์, ด่านจราจร, กล้องจับความเร็ว, เรดาร์จราจร, แผนที่ด่าน, checkdan, github pages">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚨</text></svg>">
+
+  <!-- Google Fonts: Prompt & Sarabun -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ========================================================================
+       Header Navigation
+       ======================================================================== -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo-icon">
+        <i class="fa-solid fa-radar"></i>
+      </div>
+      <div class="brand-meta">
+        <h1 class="brand-title">
+          CheckDan TH <span class="live-dot" title="ระบบทำงานเรียลไทม์"></span>
+        </h1>
+        <span class="brand-subtitle">เรดาร์และตรวจสอบจุดตรวจจราจรอัจฉริยะ</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Locate Me GPS button -->
+      <button id="btn-locate-me" class="header-btn" title="ระบุตำแหน่งปัจจุบันของฉัน">
+        <i class="fa-solid fa-location-crosshairs"></i>
+        <span>พิกัดฉัน</span>
+      </button>
+
+      <!-- Audio Mute/Unmute toggle -->
+      <button id="btn-sound-toggle" class="header-btn icon-only" title="เปิด/ปิด เสียงเตือนเรดาร์">
+        <i class="fa-solid fa-volume-high"></i>
+      </button>
+
+      <!-- GitHub Sync & Settings -->
+      <button id="btn-github-settings" class="header-btn btn-github" title="ตั้งค่าและซิงค์ข้อมูลกับ GitHub">
+        <i class="fa-brands fa-github"></i>
+        <span>GitHub Sync</span>
+      </button>
+
+      <!-- Primary Action: Report Checkpoint -->
+      <button class="btn-primary-action btn-open-report">
+        <i class="fa-solid fa-plus-circle"></i>
+        <span>แจ้งจุดตรวจด่าน</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       Main Application Area (Sidebar + Leaflet Map)
+       ======================================================================== -->
+  <main class="app-container">
+    
+    <!-- Sidebar: Checkpoints List, Search & Filters -->
+    <aside class="app-sidebar" id="sidebar">
+      
+      <!-- Stats Summary Bar -->
+      <div class="sidebar-stats-bar">
+        <div class="stat-item">
+          <span class="stat-value" id="stat-total">0</span>
+          <span class="stat-label">จุดตรวจทั้งหมด</span>
+        </div>
+        <div class="stat-item active">
+          <span class="stat-value" id="stat-active">0</span>
+          <span class="stat-label">🚨 กำลังตั้งด่าน</span>
+        </div>
+        <div class="stat-item cleared">
+          <span class="stat-value" id="stat-cleared">0</span>
+          <span class="stat-label">✅ เคลียร์แล้ว</span>
+        </div>
+      </div>
+
+      <!-- Search Input -->
+      <div class="sidebar-search-box">
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="search-input" class="search-input" placeholder="ค้นหาตามถนน, แยก, เขต, จังหวัด..." autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Filter Chips Carousel -->
+      <div class="filter-chips-wrapper">
+        <button class="filter-chip active" data-filter="all">
+          <i class="fa-solid fa-border-all"></i> ทั้งหมด
+        </button>
+        <button class="filter-chip" data-filter="alcohol">
+          <i class="fa-solid fa-wine-bottle"></i> ตรวจแอลกอฮอล์
+        </button>
+        <button class="filter-chip" data-filter="traffic">
+          <i class="fa-solid fa-user-shield"></i> วินัยจราจร
+        </button>
+        <button class="filter-chip" data-filter="smoke">
+          <i class="fa-solid fa-smog"></i> ตรวจควันดำ
+        </button>
+        <button class="filter-chip" data-filter="speed">
+          <i class="fa-solid fa-camera-retro"></i> กล้องจับความเร็ว
+        </button>
+        <button class="filter-chip" data-filter="security">
+          <i class="fa-solid fa-shield-halved"></i> จุดตรวจร่วม
+        </button>
+        <button class="filter-chip" data-filter="cleared">
+          <i class="fa-solid fa-circle-check"></i> ยกเลิก/เคลียร์แล้ว
+        </button>
+      </div>
+
+      <!-- Results Count Header -->
+      <div class="sidebar-list-header">
+        <span id="results-count">กำลังโหลดข้อมูล...</span>
+        <span><i class="fa-solid fa-arrow-down-short-wide"></i> เรียงตามระยะทาง</span>
+      </div>
+
+      <!-- Checkpoint Cards List -->
+      <div class="checkpoint-cards-container" id="checkpoint-cards-list">
+        <!-- Rendered dynamically by JavaScript -->
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="empty-state" style="display: none;">
+        <i class="fa-solid fa-map-location-dot"></i>
+        <p>ไม่พบจุดตรวจด่านตามเงื่อนไขที่ค้นหา</p>
+      </div>
+
+    </aside>
+
+    <!-- Map View Area -->
+    <section class="map-view-wrapper">
+      
+      <!-- Proximity Warning HUD Banner (Slides down when a checkpoint is within range) -->
+      <div class="proximity-radar-hud" id="proximity-radar-hud">
+        <!-- Dynamic HUD alert content -->
+      </div>
+
+      <!-- Floating Map Theme Switcher -->
+      <div class="map-floating-tools">
+        <div class="floating-glass-panel">
+          <button class="theme-btn active" data-theme="dark" title="โหมดกลางคืน (Cyber Dark)">
+            <i class="fa-solid fa-moon"></i> โหมดมืด
+          </button>
+          <button class="theme-btn" data-theme="streets" title="โหมดกลางวัน (Street Map)">
+            <i class="fa-solid fa-sun"></i> ถนน
+          </button>
+          <button class="theme-btn" data-theme="satellite" title="ภาพถ่ายดาวเทียม">
+            <i class="fa-solid fa-satellite"></i> ดาวเทียม
+          </button>
+        </div>
+
+        <!-- Radar Detection Radius Selector -->
+        <div class="radar-settings-panel">
+          <i class="fa-solid fa-satellite-dish" style="color: var(--neon-cyan);"></i>
+          <span>รัศมีเตือนเรดาร์:</span>
+          <select id="radar-range" class="radar-select">
+            <option value="1.5">1.5 กม.</option>
+            <option value="3.0" selected>3.0 กม.</option>
+            <option value="5.0">5.0 กม.</option>
+            <option value="10.0">10.0 กม.</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Simulation Presets Bar (Instant Test on Different Streets) -->
+      <div class="map-sim-presets-bar">
+        <span class="sim-label"><i class="fa-solid fa-vial-circle-check"></i> จำลองพิกัดทดสอบ:</span>
+        <button class="sim-preset-btn" data-lat="13.7709" data-lng="100.5735">รัชดาภิเษก</button>
+        <button class="sim-preset-btn" data-lat="13.7372" data-lng="100.5604">อโศก สุขุมวิท</button>
+        <button class="sim-preset-btn" data-lat="13.6627" data-lng="100.4398">พระราม 2</button>
+        <button class="sim-preset-btn" data-lat="18.7735" data-lng="99.0354">เชียงใหม่</button>
+        <button class="sim-preset-btn" data-lat="12.9150" data-lng="100.8920">พัทยา</button>
+      </div>
+
+      <!-- Leaflet Map Container -->
+      <div id="map"></div>
+
+      <!-- Mobile Floating Report Button -->
+      <div class="floating-report-btn">
+        <button class="btn-primary-action btn-open-report">
+          <i class="fa-solid fa-plus"></i> แจ้งด่าน
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       Modal 1: Report Checkpoint Form
+       ======================================================================== -->
+  <div class="app-modal" id="report-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fa-solid fa-triangle-exclamation" style="color: var(--neon-red);"></i>
+          แจ้งรายงานจุดตรวจด่านใหม่
+        </h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="report-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">ประเภทของด่าน *</label>
+            <select id="report-type" class="form-control" required>
+              <option value="alcohol">🍷 ตรวจวัดระดับแอลกอฮอล์ (เป่าแอลกอฮอล์)</option>
+              <option value="traffic">👮 กวดขันวินัยจราจร (หมวกกันน็อก/ใบขับขี่/วิ่งขวา)</option>
+              <option value="smoke">💨 ตรวจควันดำและมลพิษ</option>
+              <option value="speed">📷 กล้องตรวจจับความเร็ว / ฝ่าไฟแดง</option>
+              <option value="security">🛡️ จุดตรวจร่วมความมั่นคง / ตรวจค้น</option>
+              <option value="weigh">🚚 ด่านชั่งน้ำหนักยานพาหนะ</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ชื่อจุดตรวจ / พาดหัว *</label>
+            <input type="text" id="report-title" class="form-control" placeholder="เช่น ด่านเป่าแอลกอฮอล์ หน้าบิ๊กซี ถ.รัชดา" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">ถนน / จุดสังเกต *</label>
+              <input type="text" id="report-location" class="form-control" placeholder="เช่น ถ.รัชดาภิเษก หน้าห้าง The Street" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ทิศทาง / ฝั่งถนน</label>
+              <input type="text" id="report-direction" class="form-control" placeholder="เช่น ขาออก มุ่งหน้าแยกสุทธิสาร">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">จังหวัด</label>
+              <input type="text" id="report-province" class="form-control" value="กรุงเทพมหานคร" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อผู้รายงาน (ไม่บังคับ)</label>
+              <input type="text" id="report-reporter" class="form-control" placeholder="พลเมืองดี">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">พิกัด Latitude *</label>
+              <input type="number" step="any" id="report-lat" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">พิกัด Longitude *</label>
+              <input type="number" step="any" id="report-lng" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">รายละเอียดเพิ่มเติม / สภาพการจราจร</label>
+            <textarea id="report-notes" class="form-control" rows="3" placeholder="ระบุจำนวนเจ้าหน้าที่ เลนที่บีบ หรือสภาพการจราจร..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="header-btn modal-close">ยกเลิก</button>
+          <button type="submit" class="btn-primary-action">
+            <i class="fa-solid fa-paper-plane"></i> ยืนยันการแจ้งด่าน
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Modal 2: Checkpoint Details & Community Verification
+       ======================================================================== -->
+  <div class="app-modal" id="detail-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="detail-type-badge" class="card-type-badge">ด่านตรวจ</span>
+          <span id="detail-status-badge" class="card-status active">กำลังตั้งด่าน</span>
+        </div>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <h3 id="detail-title" style="font-size: 18px; color: #ffffff;">-</h3>
+        
+        <div class="detail-meta-grid">
+          <div class="detail-meta-cell">
+            <span class="detail-label">สถานที่ / จุดสังเกต</span>
+            <span class="detail-value" id="detail-location">-</span>
+          </div>
+          <div class="detail-meta-cell">
+            <span class="detail-label">ทิศทาง</span>
+            <span class="detail-value" id="detail-direction">-</span>
+          </div>
+          <div class="detail-meta-cell">
+            <span class="detail-label">จังหวัด / พื้นที่</span>
+            <span class="detail-value" id="detail-province">-</span>
+          </div>
+          <div class="detail-meta-cell">
+            <span class="detail-label">ระยะห่างจากคุณ</span>
+            <span class="detail-value" id="detail-distance" style="color: var(--neon-cyan);">-</span>
+          </div>
+          <div class="detail-meta-cell">
+            <span class="detail-label">เวลาที่รายงาน</span>
+            <span class="detail-value" id="detail-time">-</span>
+          </div>
+          <div class="detail-meta-cell">
+            <span class="detail-label">ผู้รายงาน</span>
+            <span class="detail-value" id="detail-reporter">-</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="detail-label">รายละเอียด / คำเตือน</span>
+          <p id="detail-notes" style="font-size: 13px; color: #e2e8f0; background: rgba(0,0,0,0.3); padding: 10px; border-radius: var(--radius-sm);">-</p>
+        </div>
+
+        <!-- Community Verification Voting Box -->
+        <div class="community-verify-box">
+          <h4><i class="fa-solid fa-users"></i> พลังชุมชน: คุณพบเห็นด่านนี้อยู่หรือไม่?</h4>
+          <p>ร่วมโหวตเพื่ออัปเดตสถานะแบบเรียลไทม์ให้เพื่อนร่วมทาง</p>
+          <div class="verify-action-buttons">
+            <button class="btn-vote-large up" id="modal-btn-vote-up">
+              <i class="fa-solid fa-thumbs-up"></i>
+              <span>ด่านยังอยู่ (<span id="detail-count-up">0</span>)</span>
+            </button>
+            <button class="btn-vote-large down" id="modal-btn-vote-down">
+              <i class="fa-solid fa-thumbs-down"></i>
+              <span>เคลียร์/ย้ายแล้ว (<span id="detail-count-down">0</span>)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <a id="detail-gmaps-link" href="#" target="_blank" class="header-btn" style="color: #38bdf8;">
+          <i class="fa-solid fa-diamond-turn-right"></i> เปิดนำทางใน Google Maps
+        </a>
+        <button class="header-btn modal-close">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Modal 3: GitHub Sync & Deployment Setup
+       ======================================================================== -->
+  <div class="app-modal" id="github-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fa-brands fa-github" style="color: #ffffff;"></i>
+          ตั้งค่าการซิงค์ข้อมูลกับ GitHub & GitHub Pages
+        </h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="github-guide-card">
+          <b>🚀 วิธีนำเว็บนี้ขึ้น GitHub Pages ให้คนอื่นใช้งานได้ฟรี:</b>
+          <ol>
+            <li>สร้าง Repository ใหม่บน <code>github.com</code> (ตั้งชื่อเช่น <code>checkdan-th</code>)</li>
+            <li>อัปโหลดไฟล์ในโฟลเดอร์นี้ทั้งหมดขึ้นไปบน Repository</li>
+            <li>ไปที่แท็บ <b>Settings</b> &rarr; <b>Pages</b> &rarr; เลือก <code>Branch: main</code> &rarr; กด <b>Save</b></li>
+            <li>คุณจะได้ลิงก์เว็บพร้อมใช้ทันที เช่น <code>https://&lt;username&gt;.github.io/checkdan-th/</code></li>
+          </ol>
+        </div>
+
+        <form id="github-config-form">
+          <h4 style="font-size: 14px; color: var(--neon-cyan); margin-top: 6px;">
+            <i class="fa-solid fa-cloud-arrow-down"></i> เชื่อมต่อกับคลังข้อมูลบน GitHub
+          </h4>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">GitHub Username / Owner</label>
+              <input type="text" id="gh-owner" class="form-control" placeholder="เช่น your-username">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Repository Name</label>
+              <input type="text" id="gh-repo" class="form-control" placeholder="เช่น checkdan-th">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Branch</label>
+              <input type="text" id="gh-branch" class="form-control" value="main">
+            </div>
+            <div class="form-group">
+              <label class="form-label">File Path ใน Repo</label>
+              <input type="text" id="gh-path" class="form-control" value="data/checkpoints.json">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">GitHub Personal Access Token (ไม่บังคับ - ใช้เมื่อต้องการกดบันทึกตรงเข้า GitHub)</label>
+            <input type="password" id="gh-token" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+          </div>
+
+          <button type="submit" class="header-btn" style="width: 100%; justify-content: center; margin-top: 4px;">
+            <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า GitHub
+          </button>
+        </form>
+
+        <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 6px 0;">
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <h4 style="font-size: 13px; color: var(--text-muted);">เครื่องมือจัดการข้อมูล:</h4>
+          
+          <!-- Download checkpoints.json -->
+          <button type="button" class="header-btn" id="btn-export-json" style="width: 100%; justify-content: center;">
+            <i class="fa-solid fa-download"></i> ดาวน์โหลดไฟล์ checkpoints.json ล่าสุด
+          </button>
+
+          <!-- Push to GitHub API directly if token is entered -->
+          <button type="button" class="header-btn" id="btn-push-github-api" style="width: 100%; justify-content: center; border-color: rgba(0,242,254,0.3); color: var(--neon-cyan);">
+            <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลขึ้น GitHub Repo (ผ่าน API)
+          </button>
+
+          <!-- Reset data -->
+          <button type="button" class="header-btn" id="btn-reset-data" style="width: 100%; justify-content: center; color: var(--text-dim);">
+            <i class="fa-solid fa-rotate-left"></i> รีเซ็ตข้อมูลกลับเป็นค่าเริ่มต้น
+          </button>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="header-btn modal-close">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast" id="app-toast"></div>
+
+  <!-- ========================================================================
+       JavaScript Scripts
+       ======================================================================== -->
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Application Logic -->
+  <script src="js/mock-data.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/github-sync.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
