@@ -3,17 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>CheckDan TH - ระบบตรวจสอบและแจ้งเตือนด่านตรวจจราจรอัจฉริยะ (GitHub Pages Ready)</title>
-  <meta name="description" content="เว็บแอพพลิเคชันตรวจสอบจุดตรวจด่านจราจร ด่านเป่าแอลกอฮอล์ ด่านตรวจควันดำ และกล้องจับความเร็วแบบเรียลไทม์ พร้อมระบบเรดาร์เตือนล่วงหน้า และเชื่อมต่อข้อมูลผ่าน GitHub">
-  <meta name="keywords" content="เช็คด่าน, ด่านตรวจ, ด่านแอลกอฮอล์, ด่านจราจร, กล้องจับความเร็ว, เรดาร์จราจร, แผนที่ด่าน, checkdan, github pages">
+  <title>CheckDan TH - ระบบตรวจสอบด่านจราจร เรดาร์เตือนภัยด้วยเสียง & โหมดขับขี่ HUD (77 จังหวัด)</title>
+  <meta name="description" content="เว็บแอพพลิเคชันตรวจสอบจุดตรวจด่านจราจร ด่านเป่าแอลกอฮอล์ กล้องจับความเร็ว พร้อมระบบเสียงพูดเตือนภาษาไทยอัตโนมัติ โหมดขับขี่ HUD ดิจิทัล และค้นหาเส้นทางสแกนด่าน 77 จังหวัดทั่วไทย">
+  <meta name="keywords" content="เช็คด่าน, โหมดขับขี่ HUD, เสียงเตือนด่าน, เบอร์ฉุกเฉินทางหลวง, ด่านแอลกอฮอล์, กล้องจับความเร็ว, แผนที่ด่าน 77 จังหวัด, checkdan, github pages, PWA">
   
+  <!-- PWA Web App Manifest & Theme -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00f2fe">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CheckDan TH">
+
   <!-- Favicon -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚨</text></svg>">
 
   <!-- Google Fonts: Prompt & Sarabun -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- Font Awesome 6 Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -22,7 +29,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
 
@@ -36,17 +43,22 @@
       </div>
       <div class="brand-meta">
         <h1 class="brand-title">
-          CheckDan TH <span class="live-dot" title="ระบบทำงานเรียลไทม์"></span>
+          CheckDan TH <span class="live-dot" title="ระบบทำงานเรียลไทม์ 77 จังหวัด"></span>
         </h1>
-        <span class="brand-subtitle">เรดาร์และตรวจสอบจุดตรวจจราจรอัจฉริยะ</span>
+        <span class="brand-subtitle">เรดาร์เตือนด่าน & โหมดขับขี่ HUD ทั่วประเทศ</span>
       </div>
     </div>
 
     <div class="header-actions">
-      <!-- Locate Me GPS button -->
-      <button id="btn-locate-me" class="header-btn" title="ระบุตำแหน่งปัจจุบันของฉัน">
-        <i class="fa-solid fa-location-crosshairs"></i>
-        <span>พิกัดฉัน</span>
+      <!-- Driving Mode HUD Trigger -->
+      <button id="btn-open-hud" class="header-btn btn-hud" title="เปิดโหมดขับขี่เต็มจอ (HUD Driving Mode)">
+        <i class="fa-solid fa-gauge-high"></i>
+        <span>โหมดขับขี่ HUD</span>
+      </button>
+
+      <!-- Thai Voice Alerts Toggle -->
+      <button id="btn-voice-toggle" class="header-btn icon-only active" title="เปิด/ปิด เสียงพูดเตือนภาษาไทย (Thai Voice Alert)">
+        <i class="fa-solid fa-comment-dots"></i>
       </button>
 
       <!-- Audio Mute/Unmute toggle -->
@@ -54,16 +66,28 @@
         <i class="fa-solid fa-volume-high"></i>
       </button>
 
+      <!-- Emergency SOS Hotlines -->
+      <button class="header-btn btn-sos btn-open-sos" title="เบอร์โทรฉุกเฉินและหน่วยกู้ภัย 24 ชม.">
+        <i class="fa-solid fa-phone-volume"></i>
+        <span>ฉุกเฉิน SOS</span>
+      </button>
+
+      <!-- Locate Me GPS button -->
+      <button id="btn-locate-me" class="header-btn" title="ระบุตำแหน่งปัจจุบันของฉัน">
+        <i class="fa-solid fa-location-crosshairs"></i>
+        <span>พิกัดฉัน</span>
+      </button>
+
       <!-- GitHub Sync & Settings -->
       <button id="btn-github-settings" class="header-btn btn-github" title="ตั้งค่าและซิงค์ข้อมูลกับ GitHub">
         <i class="fa-brands fa-github"></i>
-        <span>GitHub Sync</span>
+        <span>GitHub</span>
       </button>
 
       <!-- Primary Action: Report Checkpoint -->
       <button class="btn-primary-action btn-open-report">
         <i class="fa-solid fa-plus-circle"></i>
-        <span>แจ้งจุดตรวจด่าน</span>
+        <span>แจ้งด่าน</span>
       </button>
     </div>
   </header>
@@ -73,73 +97,203 @@
        ======================================================================== -->
   <main class="app-container">
     
-    <!-- Sidebar: Checkpoints List, Search & Filters -->
+    <!-- Sidebar: Checkpoints List, Search, 77 Provinces & Route Scanner -->
     <aside class="app-sidebar" id="sidebar">
       
-      <!-- Stats Summary Bar -->
-      <div class="sidebar-stats-bar">
-        <div class="stat-item">
-          <span class="stat-value" id="stat-total">0</span>
-          <span class="stat-label">จุดตรวจทั้งหมด</span>
+      <!-- Top Navigation Tabs (รายการจุดตรวจ VS วางแผนเส้นทาง) -->
+      <div class="sidebar-nav-tabs">
+        <button class="tab-btn active" id="tab-btn-checkpoints" data-tab="checkpoints">
+          <i class="fa-solid fa-map-pin"></i> รายการจุดตรวจด่าน
+        </button>
+        <button class="tab-btn" id="tab-btn-route" data-tab="route">
+          <i class="fa-solid fa-route"></i> วางแผนเส้นทาง & สแกนด่าน
+        </button>
+      </div>
+
+      <!-- VIEW 1: Checkpoints List View -->
+      <div class="tab-view active" id="view-checkpoints">
+        
+        <!-- Stats Summary Bar -->
+        <div class="sidebar-stats-bar">
+          <div class="stat-item">
+            <span class="stat-value" id="stat-total">0</span>
+            <span class="stat-label">จุดตรวจทั้งหมด</span>
+          </div>
+          <div class="stat-item active">
+            <span class="stat-value" id="stat-active">0</span>
+            <span class="stat-label">🚨 กำลังตั้งด่าน</span>
+          </div>
+          <div class="stat-item cleared">
+            <span class="stat-value" id="stat-cleared">0</span>
+            <span class="stat-label">✅ เคลียร์แล้ว</span>
+          </div>
         </div>
-        <div class="stat-item active">
-          <span class="stat-value" id="stat-active">0</span>
-          <span class="stat-label">🚨 กำลังตั้งด่าน</span>
+
+        <!-- 77 Provinces Selector Dropdown -->
+        <div class="province-filter-row">
+          <div class="province-select-wrapper">
+            <i class="fa-solid fa-city province-icon"></i>
+            <select id="province-filter-select" class="province-select">
+              <option value="all">🇹🇭 ทุกจังหวัดทั่วไทย (77 จังหวัด)</option>
+              <!-- Populated dynamically by provinces-data.js -->
+            </select>
+          </div>
         </div>
-        <div class="stat-item cleared">
-          <span class="stat-value" id="stat-cleared">0</span>
-          <span class="stat-label">✅ เคลียร์แล้ว</span>
+
+        <!-- Search Input -->
+        <div class="sidebar-search-box">
+          <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="search-input" class="search-input" placeholder="ค้นหาตามถนน, แยก, อำเภอ, จังหวัด..." autocomplete="off">
+          </div>
         </div>
-      </div>
 
-      <!-- Search Input -->
-      <div class="sidebar-search-box">
-        <div class="search-input-wrapper">
-          <i class="fa-solid fa-magnifying-glass search-icon"></i>
-          <input type="text" id="search-input" class="search-input" placeholder="ค้นหาตามถนน, แยก, เขต, จังหวัด..." autocomplete="off">
+        <!-- Filter Chips Carousel -->
+        <div class="filter-chips-wrapper">
+          <button class="filter-chip active" data-filter="all">
+            <i class="fa-solid fa-border-all"></i> ทั้งหมด
+          </button>
+          <button class="filter-chip" data-filter="alcohol">
+            <i class="fa-solid fa-wine-bottle"></i> ตรวจแอลกอฮอล์
+          </button>
+          <button class="filter-chip" data-filter="traffic">
+            <i class="fa-solid fa-user-shield"></i> วินัยจราจร
+          </button>
+          <button class="filter-chip" data-filter="smoke">
+            <i class="fa-solid fa-smog"></i> ตรวจควันดำ
+          </button>
+          <button class="filter-chip" data-filter="speed">
+            <i class="fa-solid fa-camera-retro"></i> กล้องจับความเร็ว
+          </button>
+          <button class="filter-chip" data-filter="security">
+            <i class="fa-solid fa-shield-halved"></i> จุดตรวจร่วม
+          </button>
+          <button class="filter-chip" data-filter="cleared">
+            <i class="fa-solid fa-circle-check"></i> ยกเลิก/เคลียร์แล้ว
+          </button>
         </div>
+
+        <!-- Results Count Header -->
+        <div class="sidebar-list-header">
+          <span id="results-count">กำลังโหลดข้อมูล...</span>
+          <span><i class="fa-solid fa-arrow-down-short-wide"></i> เรียงตามระยะทาง</span>
+        </div>
+
+        <!-- Checkpoint Cards List -->
+        <div class="checkpoint-cards-container" id="checkpoint-cards-list">
+          <!-- Rendered dynamically by JavaScript -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+          <i class="fa-solid fa-map-location-dot"></i>
+          <p>ไม่พบจุดตรวจด่านตามเงื่อนไขหรือจังหวัดที่ค้นหา</p>
+        </div>
+
       </div>
 
-      <!-- Filter Chips Carousel -->
-      <div class="filter-chips-wrapper">
-        <button class="filter-chip active" data-filter="all">
-          <i class="fa-solid fa-border-all"></i> ทั้งหมด
-        </button>
-        <button class="filter-chip" data-filter="alcohol">
-          <i class="fa-solid fa-wine-bottle"></i> ตรวจแอลกอฮอล์
-        </button>
-        <button class="filter-chip" data-filter="traffic">
-          <i class="fa-solid fa-user-shield"></i> วินัยจราจร
-        </button>
-        <button class="filter-chip" data-filter="smoke">
-          <i class="fa-solid fa-smog"></i> ตรวจควันดำ
-        </button>
-        <button class="filter-chip" data-filter="speed">
-          <i class="fa-solid fa-camera-retro"></i> กล้องจับความเร็ว
-        </button>
-        <button class="filter-chip" data-filter="security">
-          <i class="fa-solid fa-shield-halved"></i> จุดตรวจร่วม
-        </button>
-        <button class="filter-chip" data-filter="cleared">
-          <i class="fa-solid fa-circle-check"></i> ยกเลิก/เคลียร์แล้ว
-        </button>
-      </div>
+      <!-- VIEW 2: Route Planning & Checkpoint Collision Scanner View -->
+      <div class="tab-view" id="view-route">
+        <div class="route-view-container">
+          
+          <div class="route-inputs-card">
+            <div class="route-input-row">
+              <div class="route-point-marker origin" title="จุดเริ่มต้น"><i class="fa-solid fa-play"></i></div>
+              <select id="route-origin-select" class="route-select">
+                <option value="current">📍 ตำแหน่งปัจจุบันของฉัน (GPS)</option>
+              </select>
+            </div>
 
-      <!-- Results Count Header -->
-      <div class="sidebar-list-header">
-        <span id="results-count">กำลังโหลดข้อมูล...</span>
-        <span><i class="fa-solid fa-arrow-down-short-wide"></i> เรียงตามระยะทาง</span>
-      </div>
+            <div class="route-input-row">
+              <div class="route-point-marker dest" title="จุดหมายปลายทาง"><i class="fa-solid fa-flag-checkered"></i></div>
+              <select id="route-dest-select" class="route-select">
+                <option value="" disabled selected>🏁 เลือกจุดหมายปลายทาง (จังหวัด)...</option>
+              </select>
+            </div>
 
-      <!-- Checkpoint Cards List -->
-      <div class="checkpoint-cards-container" id="checkpoint-cards-list">
-        <!-- Rendered dynamically by JavaScript -->
-      </div>
+            <button id="btn-calculate-route" class="btn-scan-route">
+              <i class="fa-solid fa-magnifying-glass-location"></i> สแกนด่านตามเส้นทางนี้
+            </button>
+          </div>
 
-      <!-- Empty State -->
-      <div class="empty-state" id="empty-state" style="display: none;">
-        <i class="fa-solid fa-map-location-dot"></i>
-        <p>ไม่พบจุดตรวจด่านตามเงื่อนไขที่ค้นหา</p>
+          <!-- Quick Route Presets -->
+          <div class="route-presets-section">
+            <span class="section-label">
+              <i class="fa-solid fa-bolt" style="color: var(--neon-amber);"></i> เส้นทางยอดนิยม (Quick Routes):
+            </span>
+            <div class="route-presets-grid">
+              <button class="preset-route-btn" data-origin="BKK" data-dest="CBI">
+                <span>กรุงเทพฯ &rarr; พัทยา</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+              <button class="preset-route-btn" data-origin="BKK" data-dest="CMI">
+                <span>กรุงเทพฯ &rarr; เชียงใหม่</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+              <button class="preset-route-btn" data-origin="BKK" data-dest="NMA">
+                <span>กรุงเทพฯ &rarr; โคราช</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+              <button class="preset-route-btn" data-origin="BKK" data-dest="PKN">
+                <span>กรุงเทพฯ &rarr; หัวหิน</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+              <button class="preset-route-btn" data-origin="SKA" data-dest="SNI">
+                <span>หาดใหญ่ &rarr; สุราษฎร์ฯ</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+              <button class="preset-route-btn" data-origin="BKK" data-dest="PKT">
+                <span>กรุงเทพฯ &rarr; ภูเก็ต</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Route Scan Results Container -->
+          <div id="route-result-wrapper" style="display: none;">
+            <div class="route-summary-card">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="font-size: 15px; color: #ffffff;">สรุปข้อมูลเส้นทาง & ด่านตรวจ</h4>
+                <div style="display: flex; gap: 6px;">
+                  <button id="btn-route-share" class="btn-clear-route" style="color: var(--neon-cyan); border-color: rgba(0,242,254,0.3);">
+                    <i class="fa-solid fa-share-nodes"></i> แชร์
+                  </button>
+                  <button id="btn-clear-route" class="btn-clear-route" title="ยกเลิกเส้นทาง">
+                    <i class="fa-solid fa-xmark"></i> ล้าง
+                  </button>
+                </div>
+              </div>
+
+              <div class="route-stats-grid">
+                <div class="route-stat-item">
+                  <span class="val" id="route-stat-distance">-</span>
+                  <span class="lbl">ระยะทางรวม</span>
+                </div>
+                <div class="route-stat-item">
+                  <span class="val" id="route-stat-duration">-</span>
+                  <span class="lbl">เวลาเดินทางโดยประมาณ</span>
+                </div>
+              </div>
+
+              <!-- Warning Box -->
+              <div id="route-warning-banner" class="route-checkpoint-warning-box">
+                <!-- Injected by JS -->
+              </div>
+
+              <!-- Checkpoints Along Route Timeline -->
+              <div>
+                <span class="section-label" style="margin-bottom: 6px;">
+                  <i class="fa-solid fa-timeline"></i> รายการด่านที่พบตลอดสายทาง:
+                </span>
+                <div class="route-timeline-container" id="route-timeline-list">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
       </div>
 
     </aside>
@@ -147,9 +301,14 @@
     <!-- Map View Area -->
     <section class="map-view-wrapper">
       
-      <!-- Proximity Warning HUD Banner (Slides down when a checkpoint is within range) -->
+      <!-- Proximity Warning HUD Banner -->
       <div class="proximity-radar-hud" id="proximity-radar-hud">
         <!-- Dynamic HUD alert content -->
+      </div>
+
+      <!-- Dedicated Speed Camera & Laser Radar Detector Warning Banner -->
+      <div class="speed-camera-radar-banner" id="speed-radar-hud">
+        <!-- Injected dynamically by JS -->
       </div>
 
       <!-- Floating Map Theme Switcher -->
@@ -175,22 +334,24 @@
             <option value="3.0" selected>3.0 กม.</option>
             <option value="5.0">5.0 กม.</option>
             <option value="10.0">10.0 กม.</option>
+            <option value="25.0">25.0 กม.</option>
           </select>
         </div>
       </div>
 
-      <!-- Simulation Presets Bar (Instant Test on Different Streets) -->
+      <!-- Simulation Presets Bar -->
       <div class="map-sim-presets-bar">
-        <span class="sim-label"><i class="fa-solid fa-vial-circle-check"></i> จำลองพิกัดทดสอบ:</span>
+        <span class="sim-label"><i class="fa-solid fa-vial-circle-check"></i> พิกัดตัวอย่าง:</span>
         <button class="sim-preset-btn" data-lat="13.7709" data-lng="100.5735">รัชดาภิเษก</button>
-        <button class="sim-preset-btn" data-lat="13.7372" data-lng="100.5604">อโศก สุขุมวิท</button>
-        <button class="sim-preset-btn" data-lat="13.6627" data-lng="100.4398">พระราม 2</button>
+        <button class="sim-preset-btn" data-lat="13.7372" data-lng="100.5604">อโศก</button>
+        <button class="sim-preset-btn" data-lat="13.8761" data-lng="100.4109" style="border-color: #06b6d4; color: #38bdf8;"><i class="fa-solid fa-camera-retro"></i> กล้องเวสต์เกต (ทล.9)</button>
+        <button class="sim-preset-btn" data-lat="14.8912" data-lng="101.7180">โคราช</button>
         <button class="sim-preset-btn" data-lat="18.7735" data-lng="99.0354">เชียงใหม่</button>
         <button class="sim-preset-btn" data-lat="12.9150" data-lng="100.8920">พัทยา</button>
       </div>
 
       <!-- Leaflet Map Container -->
-      <div id="map"></div>
+      <div id="map" class="map-theme-dark"></div>
 
       <!-- Mobile Floating Report Button -->
       <div class="floating-report-btn">
@@ -202,6 +363,78 @@
     </section>
 
   </main>
+
+  <!-- ========================================================================
+       Full-Screen Driving HUD Mode Overlay
+       ======================================================================== -->
+  <div class="hud-driving-mode" id="hud-driving-mode">
+    <div class="hud-top-bar">
+      <div class="hud-title-wrap">
+        <div class="brand-logo-icon" style="width: 34px; height: 34px; font-size: 16px;">
+          <i class="fa-solid fa-gauge-high"></i>
+        </div>
+        <h2>DRIVE HUD MODE</h2>
+      </div>
+
+      <div class="hud-actions">
+        <!-- Simulator Toggle Button -->
+        <button id="btn-toggle-hud-sim" class="header-btn" style="border-color: var(--neon-amber); color: var(--neon-amber);">
+          <i class="fa-solid fa-car-side"></i> จำลองขับรถ
+        </button>
+
+        <!-- Fullscreen Button -->
+        <button id="btn-hud-fullscreen" class="header-btn icon-only" title="เต็มจอ">
+          <i class="fa-solid fa-expand"></i>
+        </button>
+
+        <!-- Close HUD Button -->
+        <button id="btn-close-hud" class="btn-primary-action" style="padding: 7px 14px; font-size: 12px;">
+          <i class="fa-solid fa-xmark"></i> ออกจากโหมด HUD
+        </button>
+      </div>
+    </div>
+
+    <div class="hud-center-stage">
+      <div class="hud-speedometer-box">
+        <span class="hud-speed-val" id="hud-speed-value">0</span>
+        <span class="hud-speed-unit" id="hud-speed-unit">KM / H</span>
+        <span class="hud-overspeed-tag" id="hud-overspeed-tag">
+          <i class="fa-solid fa-triangle-exclamation"></i> ความเร็วเกินกำหนด!
+        </span>
+
+        <!-- Speed Limit Sign -->
+        <div class="hud-speed-limit-sign" id="hud-speed-limit" title="คลิกเพื่อสลับ 90 / 120 กม./ชม.">
+          90
+        </div>
+      </div>
+
+      <!-- Nearest Checkpoint HUD Card -->
+      <div class="hud-next-cp-card" id="hud-next-cp-card" style="display: none;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span id="hud-next-cp-badge" class="card-type-badge alcohol">ตรวจแอลกอฮอล์</span>
+            <span style="font-size: 11px; color: var(--text-muted);">ด่านที่ใกล้ที่สุด</span>
+          </div>
+          <h3 id="hud-next-cp-title" style="font-size: 16px; color: #ffffff; margin-bottom: 2px;">-</h3>
+          <p id="hud-next-cp-loc" style="font-size: 12px; color: #94a3b8;">-</p>
+        </div>
+        <div style="text-align: right;">
+          <div class="hud-cp-dist-big" id="hud-next-cp-dist">-</div>
+          <div style="font-size: 11px; color: var(--text-muted);">ถึงใน: <span id="hud-next-cp-eta" style="color: var(--neon-cyan); font-weight: 700;">-</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-bottom-bar">
+      <div>
+        <i class="fa-solid fa-compass" style="color: var(--neon-cyan);"></i>
+        ทิศมุ่งหน้า: <span id="hud-compass-direction" style="color: #ffffff; font-weight: 600;">N (เหนือ)</span>
+      </div>
+      <div>
+        <i class="fa-solid fa-satellite"></i> GPS พร้อมใช้งาน (ระบบเสียงเตือนอัตโนมัติเปิดอยู่)
+      </div>
+    </div>
+  </div>
 
   <!-- ========================================================================
        Modal 1: Report Checkpoint Form
@@ -248,8 +481,10 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">จังหวัด</label>
-              <input type="text" id="report-province" class="form-control" value="กรุงเทพมหานคร" required>
+              <label class="form-label">จังหวัด *</label>
+              <select id="report-province-select" class="form-control" required>
+                <!-- Populated dynamically with 77 provinces -->
+              </select>
             </div>
             <div class="form-group">
               <label class="form-label">ชื่อผู้รายงาน (ไม่บังคับ)</label>
@@ -294,7 +529,13 @@
           <span id="detail-type-badge" class="card-type-badge">ด่านตรวจ</span>
           <span id="detail-status-badge" class="card-status active">กำลังตั้งด่าน</span>
         </div>
-        <button class="modal-close">&times;</button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <!-- Share Button in Modal -->
+          <button id="btn-detail-share" class="header-btn icon-only" title="แชร์ข้อมูลด่านลง LINE / Facebook">
+            <i class="fa-solid fa-share-nodes"></i>
+          </button>
+          <button class="modal-close">&times;</button>
+        </div>
       </div>
       <div class="modal-body">
         <h3 id="detail-title" style="font-size: 18px; color: #ffffff;">-</h3>
@@ -357,7 +598,46 @@
   </div>
 
   <!-- ========================================================================
-       Modal 3: GitHub Sync & Deployment Setup
+       Modal 3: Emergency SOS Hotlines Directory
+       ======================================================================== -->
+  <div class="app-modal" id="sos-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: #ef4444;">
+          <i class="fa-solid fa-phone-volume"></i>
+          ศูนย์รวมเบอร์ฉุกเฉิน & กู้ภัยทางหลวง 24 ชม.
+        </h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Share Distress Location Card -->
+        <div style="background: rgba(239,68,68,0.15); border: 1px solid #ef4444; border-radius: var(--radius-md); padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div>
+            <div style="font-weight: 700; color: #ffffff; font-size: 13px;">🚨 ขอความช่วยเหลือฉุกเฉิน (แชร์พิกัด)</div>
+            <div style="font-size: 11px; color: var(--text-muted);">คัดลอกพิกัด GPS ปัจจุบันเพื่อส่งให้เจ้าหน้าที่/กู้ภัยผ่าน LINE/SMS</div>
+          </div>
+          <button id="btn-share-sos-gps" class="btn-primary-action" style="padding: 7px 12px; font-size: 12px;">
+            <i class="fa-solid fa-location-arrow"></i> แชร์พิกัดฉัน
+          </button>
+        </div>
+
+        <h4 style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">โทรออกได้ทันที (คลิกปุ่มโทร):</h4>
+
+        <div class="sos-hotlines-grid" id="sos-hotlines-list">
+          <!-- Rendered dynamically by sos.js -->
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="header-btn modal-close">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Modal 4: GitHub Sync & Deployment Setup
        ======================================================================== -->
   <div class="app-modal" id="github-modal">
     <div class="modal-backdrop"></div>
@@ -409,7 +689,7 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">GitHub Personal Access Token (ไม่บังคับ - ใช้เมื่อต้องการกดบันทึกตรงเข้า GitHub)</label>
+            <label class="form-label">GitHub Personal Access Token (ไม่บังคับ)</label>
             <input type="password" id="gh-token" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
           </div>
 
@@ -428,7 +708,7 @@
             <i class="fa-solid fa-download"></i> ดาวน์โหลดไฟล์ checkpoints.json ล่าสุด
           </button>
 
-          <!-- Push to GitHub API directly if token is entered -->
+          <!-- Push to GitHub API directly -->
           <button type="button" class="header-btn" id="btn-push-github-api" style="width: 100%; justify-content: center; border-color: rgba(0,242,254,0.3); color: var(--neon-cyan);">
             <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูลขึ้น GitHub Repo (ผ่าน API)
           </button>
@@ -446,6 +726,17 @@
     </div>
   </div>
 
+  <!-- PWA Install Smart Prompt Banner -->
+  <div class="pwa-install-banner" id="pwa-install-banner">
+    <i class="fa-solid fa-mobile-screen-button" style="color: var(--neon-cyan); font-size: 20px;"></i>
+    <div>
+      <div style="font-size: 13px; font-weight: 700;">ติดตั้ง CheckDan ลงมือถือ</div>
+      <div style="font-size: 11px; color: var(--text-muted);">เปิดใช้งานได้รวดเร็วเหมือนแอปจริง</div>
+    </div>
+    <button class="pwa-btn-install" id="btn-pwa-install">ติดตั้ง</button>
+    <button class="pwa-btn-close" id="btn-pwa-close">&times;</button>
+  </div>
+
   <!-- Toast Notification Container -->
   <div class="toast" id="app-toast"></div>
 
@@ -455,12 +746,18 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-  <!-- Application Logic -->
-  <script src="js/mock-data.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/github-sync.js"></script>
-  <script src="js/map.js"></script>
-  <script src="js/app.js"></script>
+  <!-- Application Logic & Extension Modules -->
+  <script src="js/provinces-data.js?v=6"></script>
+  <script src="js/mock-data.js?v=6"></script>
+  <script src="js/audio.js?v=6"></script>
+  <script src="js/voice.js?v=6"></script>
+  <script src="js/hud.js?v=6"></script>
+  <script src="js/sos.js?v=6"></script>
+  <script src="js/social.js?v=6"></script>
+  <script src="js/github-sync.js?v=6"></script>
+  <script src="js/routing.js?v=6"></script>
+  <script src="js/map.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
 
 </body>
 </html>

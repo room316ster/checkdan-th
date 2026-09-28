@@ -1,16 +1,19 @@
-// Main Application Controller for CheckDan Thailand
+// Main Application Controller for CheckDan Thailand (Full Ecosystem)
 class CheckDanApp {
   constructor() {
     this.checkpoints = [];
     this.activeFilter = 'all';
+    this.selectedProvince = 'all';
     this.searchQuery = '';
     this.selectedCheckpoint = null;
     this.nearestCheckpoint = null;
-    this.radarDistanceThresholdKm = 3.0; // Distance to trigger proximity warning
+    this.radarDistanceThresholdKm = 3.0;
+    this.activeTab = 'checkpoints';
+    this.deferredPwaPrompt = null;
   }
 
   async init() {
-    console.log('Initializing CheckDan App...');
+    console.log('Initializing CheckDan App with Voice, Driving HUD, SOS & PWA...');
     
     // 1. Initialize Map
     window.mapManager.init('map');
@@ -18,17 +21,83 @@ class CheckDanApp {
       this.openReportModalWithCoords(latlng.lat, latlng.lng);
     };
 
-    // 2. Load Checkpoint Data (GitHub / LocalStorage / Fallback)
+    // 2. Populate 77 Provinces in Dropdowns
+    this.populateProvinceDropdowns();
+
+    // 3. Load Checkpoint Data (GitHub / LocalStorage / Fallback)
     await this.refreshData();
 
-    // 3. Bind UI Events
+    // 4. Initialize Extension Modules
+    if (window.hudManager) window.hudManager.init();
+    if (window.sosManager) window.sosManager.init();
+
+    // 5. Bind UI Events
     this.bindEvents();
 
-    // 4. Update UI stats
+    // 6. Register PWA Service Worker & Install Prompt
+    this.initPWA();
+
+    // 7. Update UI stats
     this.updateStats();
 
-    // 5. Try requesting user geolocation automatically (graceful fallback)
+    // 8. Request user geolocation automatically
     this.requestUserLocation(false);
+  }
+
+  populateProvinceDropdowns() {
+    const filterSelect = document.getElementById('province-filter-select');
+    const originSelect = document.getElementById('route-origin-select');
+    const destSelect = document.getElementById('route-dest-select');
+    const reportSelect = document.getElementById('report-province-select');
+
+    if (!window.THAILAND_PROVINCES) return;
+
+    const regions = ['central', 'north', 'northeast', 'east', 'west', 'south'];
+    
+    regions.forEach(regionKey => {
+      const regionName = window.REGION_LABELS[regionKey] || regionKey;
+      const provsInRegion = window.THAILAND_PROVINCES.filter(p => p.region === regionKey);
+
+      const createOptGroup = (title) => {
+        const group = document.createElement('optgroup');
+        group.label = `--- ${title} ---`;
+        provsInRegion.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name;
+          group.appendChild(opt);
+        });
+        return group;
+      };
+
+      if (filterSelect) {
+        const grp = document.createElement('optgroup');
+        grp.label = `--- ${regionName} ---`;
+        provsInRegion.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.name;
+          opt.textContent = p.name;
+          grp.appendChild(opt);
+        });
+        filterSelect.appendChild(grp);
+      }
+
+      if (originSelect) originSelect.appendChild(createOptGroup(regionName));
+      if (destSelect) destSelect.appendChild(createOptGroup(regionName));
+      
+      if (reportSelect) {
+        const grp = document.createElement('optgroup');
+        grp.label = `--- ${regionName} ---`;
+        provsInRegion.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.name;
+          opt.textContent = p.name;
+          if (p.id === 'BKK') opt.selected = true;
+          grp.appendChild(opt);
+        });
+        reportSelect.appendChild(grp);
+      }
+    });
   }
 
   async refreshData() {
@@ -37,6 +106,77 @@ class CheckDanApp {
   }
 
   bindEvents() {
+    // Tab Switching (Checkpoints vs Route)
+    const tabCheckpoints = document.getElementById('tab-btn-checkpoints');
+    const tabRoute = document.getElementById('tab-btn-route');
+    const viewCheckpoints = document.getElementById('view-checkpoints');
+    const viewRoute = document.getElementById('view-route');
+
+    if (tabCheckpoints && tabRoute) {
+      tabCheckpoints.addEventListener('click', () => {
+        tabCheckpoints.classList.add('active');
+        tabRoute.classList.remove('active');
+        viewCheckpoints.classList.add('active');
+        viewRoute.classList.remove('active');
+        this.activeTab = 'checkpoints';
+      });
+
+      tabRoute.addEventListener('click', () => {
+        tabRoute.classList.add('active');
+        tabCheckpoints.classList.remove('active');
+        viewRoute.classList.add('active');
+        viewCheckpoints.classList.remove('active');
+        this.activeTab = 'route';
+      });
+    }
+
+    // Voice Alert Toggle Button
+    const voiceToggle = document.getElementById('btn-voice-toggle');
+    if (voiceToggle) {
+      voiceToggle.addEventListener('click', () => {
+        const isEnabled = window.voiceManager.toggleVoice();
+        voiceToggle.classList.toggle('active', isEnabled);
+        voiceToggle.classList.toggle('muted', !isEnabled);
+        if (isEnabled) {
+          window.voiceManager.testVoice();
+          this.showToast('🗣️ เปิดระบบเสียงพูดเตือนภาษาไทยอัตโนมัติเรียบร้อย', 'success');
+        } else {
+          this.showToast('🔇 ปิดเสียงพูดเตือนภาษาไทย', 'info');
+        }
+      });
+    }
+
+    // Audio Sound Synthesizer Toggle
+    const soundToggle = document.getElementById('btn-sound-toggle');
+    if (soundToggle) {
+      soundToggle.addEventListener('click', () => {
+        const isEnabled = window.soundManager.toggleSound();
+        soundToggle.innerHTML = isEnabled 
+          ? '<i class="fa-solid fa-volume-high"></i>' 
+          : '<i class="fa-solid fa-volume-xmark"></i>';
+        soundToggle.classList.toggle('muted', !isEnabled);
+        if (isEnabled) window.soundManager.playSuccess();
+      });
+    }
+
+    // Province Filter Dropdown
+    const provFilterSelect = document.getElementById('province-filter-select');
+    if (provFilterSelect) {
+      provFilterSelect.addEventListener('change', (e) => {
+        this.selectedProvince = e.target.value;
+        if (this.selectedProvince !== 'all') {
+          const found = window.THAILAND_PROVINCES.find(p => p.name === this.selectedProvince);
+          if (found) {
+            window.mapManager.flyTo(found.lat, found.lng, 10);
+            this.showToast(`🇹🇭 เลือกดูจุดตรวจในจังหวัด: ${found.name}`, 'info');
+          }
+        } else {
+          window.mapManager.flyTo(13.7563, 100.5018, 7);
+        }
+        this.render();
+      });
+    }
+
     // Search input
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
@@ -65,21 +205,6 @@ class CheckDanApp {
       });
     }
 
-    // Audio Mute/Unmute Toggle
-    const soundToggle = document.getElementById('btn-sound-toggle');
-    if (soundToggle) {
-      soundToggle.addEventListener('click', () => {
-        const isEnabled = window.soundManager.toggleSound();
-        soundToggle.innerHTML = isEnabled 
-          ? '<i class="fa-solid fa-volume-high"></i>' 
-          : '<i class="fa-solid fa-volume-xmark"></i>';
-        soundToggle.classList.toggle('muted', !isEnabled);
-        if (isEnabled) {
-          window.soundManager.playSuccess();
-        }
-      });
-    }
-
     // Map Theme Selectors
     const themeButtons = document.querySelectorAll('.theme-btn');
     themeButtons.forEach((btn) => {
@@ -101,7 +226,56 @@ class CheckDanApp {
       });
     }
 
-    // Report Checkpoint Button (Header & Floating)
+    // Route Calculate Button
+    const btnCalcRoute = document.getElementById('btn-calculate-route');
+    if (btnCalcRoute) {
+      btnCalcRoute.addEventListener('click', () => {
+        this.handleCalculateRoute();
+      });
+    }
+
+    // Quick Route Preset Buttons
+    const presetButtons = document.querySelectorAll('.preset-route-btn');
+    presetButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const originId = btn.dataset.origin;
+        const destId = btn.dataset.dest;
+
+        const originSelect = document.getElementById('route-origin-select');
+        const destSelect = document.getElementById('route-dest-select');
+
+        if (originSelect) originSelect.value = originId;
+        if (destSelect) destSelect.value = destId;
+
+        this.handleCalculateRoute();
+      });
+    });
+
+    // Route Share Button
+    const btnRouteShare = document.getElementById('btn-route-share');
+    if (btnRouteShare) {
+      btnRouteShare.addEventListener('click', () => {
+        if (window.routeManager.activeRoute) {
+          window.socialManager.shareRoute(
+            window.routeManager.activeRoute,
+            window.routeManager.activeRoute.detectedCheckpoints || []
+          );
+        }
+      });
+    }
+
+    // Clear Route Button
+    const btnClearRoute = document.getElementById('btn-clear-route');
+    if (btnClearRoute) {
+      btnClearRoute.addEventListener('click', () => {
+        window.routeManager.clearRoute(window.mapManager.map);
+        const resultWrap = document.getElementById('route-result-wrapper');
+        if (resultWrap) resultWrap.style.display = 'none';
+        this.showToast('🧹 ล้างเส้นทางเรียบร้อยแล้ว', 'info');
+      });
+    }
+
+    // Report Checkpoint Modal Openers
     const reportButtons = document.querySelectorAll('.btn-open-report');
     reportButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -117,7 +291,17 @@ class CheckDanApp {
       });
     }
 
-    // Quick Simulation Location buttons (for instant testing without driving)
+    // Checkpoint Detail Modal Share Button
+    const btnDetailShare = document.getElementById('btn-detail-share');
+    if (btnDetailShare) {
+      btnDetailShare.addEventListener('click', () => {
+        if (this.selectedCheckpoint) {
+          window.socialManager.shareCheckpoint(this.selectedCheckpoint);
+        }
+      });
+    }
+
+    // Quick Simulation Location buttons
     const simButtons = document.querySelectorAll('.sim-preset-btn');
     simButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -145,7 +329,172 @@ class CheckDanApp {
     });
   }
 
-  // Request actual browser geolocation
+  // Progressive Web App (PWA) Initialization
+  initPWA() {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then((reg) => {
+          reg.update();
+          console.log('[PWA] Service Worker registered and updating:', reg.scope);
+        }).catch((err) => {
+          console.warn('[PWA] Service Worker registration failed:', err);
+        });
+      });
+    }
+
+    // Intercept BeforeInstallPrompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.deferredPwaPrompt = e;
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.classList.add('show');
+    });
+
+    const btnInstall = document.getElementById('btn-pwa-install');
+    if (btnInstall) {
+      btnInstall.addEventListener('click', () => {
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.classList.remove('show');
+        if (this.deferredPwaPrompt) {
+          this.deferredPwaPrompt.prompt();
+          this.deferredPwaPrompt.userChoice.then((choice) => {
+            console.log('[PWA] User choice:', choice.outcome);
+            this.deferredPwaPrompt = null;
+          });
+        }
+      });
+    }
+
+    const btnClosePwa = document.getElementById('btn-pwa-close');
+    if (btnClosePwa) {
+      btnClosePwa.addEventListener('click', () => {
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.classList.remove('show');
+      });
+    }
+  }
+
+  // Handle Route Calculation & Checkpoint Scanning
+  async handleCalculateRoute() {
+    const originSelect = document.getElementById('route-origin-select');
+    const destSelect = document.getElementById('route-dest-select');
+    const btnCalc = document.getElementById('btn-calculate-route');
+
+    const originVal = originSelect ? originSelect.value : 'current';
+    const destVal = destSelect ? destSelect.value : '';
+
+    if (!destVal) {
+      this.showToast('⚠️ กรุณาเลือกจุดหมายปลายทาง', 'warning');
+      return;
+    }
+
+    let originCoords = null;
+    if (originVal === 'current') {
+      if (window.mapManager.userCoords) {
+        originCoords = window.mapManager.userCoords;
+      } else {
+        originCoords = { lat: 13.7563, lng: 100.5018 };
+      }
+    } else {
+      const origProv = window.THAILAND_PROVINCES.find(p => p.id === originVal);
+      if (origProv) originCoords = { lat: origProv.lat, lng: origProv.lng };
+    }
+
+    let destCoords = null;
+    const destProv = window.THAILAND_PROVINCES.find(p => p.id === destVal);
+    if (destProv) {
+      destCoords = { lat: destProv.lat, lng: destProv.lng };
+    }
+
+    if (!originCoords || !destCoords) {
+      this.showToast('⚠️ ไม่สามารถระบุพิกัดเส้นทางได้', 'warning');
+      return;
+    }
+
+    if (btnCalc) {
+      btnCalc.disabled = true;
+      btnCalc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังคำนวณเส้นทาง & สแกนด่าน...';
+    }
+
+    try {
+      const result = await window.routeManager.calculateRoute(originCoords, destCoords, this.checkpoints);
+      window.routeManager.drawRouteOnMap(window.mapManager.map);
+      this.renderRouteResults(result);
+      window.soundManager.playSuccess();
+
+      const count = (result.detectedCheckpoints || []).length;
+      if (count > 0) {
+        window.voiceManager.speak(`คำนวณเส้นทางเรียบร้อย ระยะทาง ${Math.round(result.distanceKm)} กิโลเมตร ตรวจพบด่านตรวจตลอดสายทาง ${count} จุดค่ะ`);
+      } else {
+        window.voiceManager.speak(`คำนวณเส้นทางเรียบร้อย ระยะทาง ${Math.round(result.distanceKm)} กิโลเมตร ไม่พบจุดตรวจด่านตลอดสายทาง ขอให้เดินทางโดยสวัสดิภาพค่ะ`);
+      }
+
+      this.showToast(`🚗 คำนวณเส้นทางสำเร็จ! ระยะทาง ${result.distanceKm.toFixed(1)} กม.`, 'success');
+    } catch (err) {
+      console.error('Routing calculation failed:', err);
+      this.showToast('❌ ไม่สามารถคำนวณเส้นทางได้ กรุณาลองใหม่อีกครั้ง', 'error');
+    } finally {
+      if (btnCalc) {
+        btnCalc.disabled = false;
+        btnCalc.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> สแกนด่านตามเส้นทางนี้';
+      }
+    }
+  }
+
+  renderRouteResults(route) {
+    const wrapper = document.getElementById('route-result-wrapper');
+    const distEl = document.getElementById('route-stat-distance');
+    const durEl = document.getElementById('route-stat-duration');
+    const bannerEl = document.getElementById('route-warning-banner');
+    const timelineEl = document.getElementById('route-timeline-list');
+
+    if (!wrapper) return;
+    wrapper.style.display = 'block';
+
+    if (distEl) distEl.textContent = `${route.distanceKm.toFixed(1)} กม.`;
+    if (durEl) durEl.textContent = window.routeManager.formatDuration(route.durationMin);
+
+    const detected = route.detectedCheckpoints || [];
+
+    if (bannerEl) {
+      if (detected.length > 0) {
+        bannerEl.className = 'route-checkpoint-warning-box has-checkpoints';
+        bannerEl.innerHTML = `
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 18px;"></i>
+          <span>ตรวจพบด่านตรวจบนเส้นทางนี้ ${detected.length} จุด! โปรดระมัดระวัง</span>
+        `;
+      } else {
+        bannerEl.className = 'route-checkpoint-warning-box clear';
+        bannerEl.innerHTML = `
+          <i class="fa-solid fa-circle-check" style="font-size: 18px;"></i>
+          <span>เส้นทางปลอดโปร่ง ไม่พบด่านตรวจตลอดสายทาง</span>
+        `;
+      }
+    }
+
+    if (timelineEl) {
+      if (detected.length === 0) {
+        timelineEl.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 8px;">ไม่มีจุดตรวจด่านที่ตรงกับเส้นทางนี้</div>';
+      } else {
+        timelineEl.innerHTML = detected.map((cp) => {
+          return `
+            <div class="route-checkpoint-item" onclick="window.app.flyToAndOpen('${cp.id}')">
+              <div class="item-header">
+                <span class="card-type-badge ${cp.type}">${cp.typeLabel}</span>
+                <span class="item-progress">กม. ที่ ~${Math.round((cp.routeProgressPercent / 100) * route.distanceKm)}</span>
+              </div>
+              <div class="item-title">${cp.title}</div>
+              <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <span><i class="fa-solid fa-location-dot"></i> ${cp.locationName} (${cp.province})</span>
+                <span style="color: var(--neon-cyan); cursor: pointer;" onclick="event.stopPropagation(); window.socialManager.shareCheckpoint(window.app.checkpoints.find(c => c.id === '${cp.id}'));"><i class="fa-solid fa-share-nodes"></i></span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  }
+
   requestUserLocation(showNotice = false) {
     if ('geolocation' in navigator) {
       const locateBtn = document.getElementById('btn-locate-me');
@@ -166,7 +515,7 @@ class CheckDanApp {
           if (locateBtn) locateBtn.classList.remove('loading');
           console.warn('Geolocation error or denied:', err);
           if (showNotice) {
-            this.showToast('⚠️ ไม่สามารถเข้าถึงตำแหน่ง GPS ได้ (หรือไม่ได้อนุญาต) คุณสามารถใช้ปุ่ม "จำลองพิกัด" ด้านล่างเพื่อทดสอบระบบได้ครับ', 'warning');
+            this.showToast('⚠️ ไม่สามารถเข้าถึงตำแหน่ง GPS ได้ คุณสามารถใช้ปุ่ม "พิกัดตัวอย่าง" ด้านล่างเพื่อทดสอบระบบได้ครับ', 'warning');
           }
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
@@ -174,38 +523,91 @@ class CheckDanApp {
     }
   }
 
-  // Simulate user location (e.g. for testing proximity alerts)
   simulateUserLocation(lat, lng, name) {
     window.mapManager.setUserLocation(lat, lng, 20);
     window.soundManager.playRadarPing();
     this.checkProximityAlerts();
     this.renderList();
-    this.showToast(`🎯 จำลองตำแหน่งที่: ${name}`, 'info');
+    this.showToast(`🎯 พิกัดตัวอย่าง: ${name}`, 'info');
   }
 
-  // Check if any active checkpoint is within the proximity radar zone
+  // Check if any active checkpoint or speed camera is within proximity
   checkProximityAlerts() {
     const userCoords = window.mapManager.userCoords;
     const alertBanner = document.getElementById('proximity-radar-hud');
-    if (!userCoords || !alertBanner) return;
+    const speedBanner = document.getElementById('speed-radar-hud');
+    if (!userCoords) return;
 
     let nearest = null;
     let minDistance = Infinity;
 
+    let nearestSpeed = null;
+    let minSpeedDistance = Infinity;
+
     this.checkpoints.forEach((cp) => {
       if (cp.status === 'active') {
         const dist = window.mapManager.calculateDistance(userCoords.lat, userCoords.lng, cp.lat, cp.lng);
-        if (dist < minDistance) {
-          minDistance = dist;
-          nearest = { ...cp, distanceKm: dist };
+        
+        // Track speed cameras specifically
+        if (cp.type === 'speed') {
+          if (dist < minSpeedDistance) {
+            minSpeedDistance = dist;
+            nearestSpeed = { ...cp, distanceKm: dist };
+          }
+        } else {
+          // Track general checkpoints (alcohol, traffic, smoke, etc.)
+          if (dist < minDistance) {
+            minDistance = dist;
+            nearest = { ...cp, distanceKm: dist };
+          }
         }
       }
     });
 
-    this.nearestCheckpoint = nearest;
+    this.nearestCheckpoint = nearest || nearestSpeed;
 
-    if (nearest && nearest.distanceKm <= this.radarDistanceThresholdKm) {
-      // Trigger Warning HUD and sound!
+    // 1. Dedicated Speed Camera & Radar Detection Warning
+    if (nearestSpeed && nearestSpeed.distanceKm <= 2.5 && speedBanner) {
+      const distStr = nearestSpeed.distanceKm < 1 
+        ? `${Math.round(nearestSpeed.distanceKm * 1000)} เมตร` 
+        : `${nearestSpeed.distanceKm.toFixed(1)} กิโลเมตร`;
+
+      const currentDriverSpeed = window.hudManager ? Math.round(window.hudManager.currentSpeed) : 0;
+      const speedLimit = 90;
+      const isOverspeed = currentDriverSpeed > speedLimit;
+
+      speedBanner.className = `speed-camera-radar-banner visible ${isOverspeed ? 'overspeed' : ''}`;
+      speedBanner.innerHTML = `
+        <div class="speed-radar-icon-box">
+          <i class="fa-solid fa-camera-retro"></i>
+        </div>
+        <div class="speed-radar-info">
+          <div class="speed-radar-badge-row">
+            <span class="radar-pill cyan"><i class="fa-solid fa-satellite-dish"></i> ตรวจจับสัญญาณเรดาร์</span>
+            <span class="radar-pill ${isOverspeed ? 'red' : 'cyan'}">
+              ${isOverspeed ? '⚠️ ขับเร็วเกินกำหนด!' : '⚡ เรดาร์กล้องจับความเร็ว'}
+            </span>
+          </div>
+          <div class="speed-radar-title">${nearestSpeed.title}</div>
+          <div class="speed-radar-loc">${nearestSpeed.locationName} (${nearestSpeed.direction || 'จำกัด 90 กม./ชม.'})</div>
+        </div>
+        <div class="speed-radar-limit-box">
+          <div class="mini-speed-limit">${speedLimit}</div>
+          <div class="speed-dist-tag"><i class="fa-solid fa-crosshairs"></i> ${distStr}</div>
+        </div>
+      `;
+
+      // Trigger Laser Speed Radar Detector Audio
+      window.soundManager.playSpeedRadarAlert();
+
+      // Voice warning for speed camera
+      window.voiceManager.speak(`ระวังค่ะ! อีก ${distStr} ข้างหน้ามีกล้องตรวจจับความเร็ว จำกัดความเร็ว ${speedLimit} กิโลเมตรต่อชั่วโมง กรุณาชะลอความเร็วค่ะ`);
+    } else if (speedBanner) {
+      speedBanner.classList.remove('visible', 'overspeed');
+    }
+
+    // 2. General Checkpoint Warning (Alcohol, Traffic, Smoke, etc.)
+    if (nearest && nearest.distanceKm <= this.radarDistanceThresholdKm && alertBanner) {
       const distStr = nearest.distanceKm < 1 
         ? `${Math.round(nearest.distanceKm * 1000)} เมตร` 
         : `${nearest.distanceKm.toFixed(1)} กิโลเมตร`;
@@ -225,23 +627,30 @@ class CheckDanApp {
         </div>
       `;
 
-      // Play alert chime
       window.soundManager.playWarningAlert();
-    } else {
+      window.voiceManager.announceCheckpointWarning(nearest, nearest.distanceKm);
+    } else if (alertBanner) {
       alertBanner.classList.remove('visible', 'pulse-alert');
+    }
+
+    // Update HUD display if active
+    if (window.hudManager && window.hudManager.isActive) {
+      window.hudManager.updateHUDDisplay();
     }
   }
 
   getFilteredCheckpoints() {
     return this.checkpoints.filter((cp) => {
-      // Type filter
+      if (this.selectedProvince && this.selectedProvince !== 'all') {
+        if (cp.province !== this.selectedProvince) return false;
+      }
+
       if (this.activeFilter === 'cleared') {
         if (cp.status !== 'cleared') return false;
       } else if (this.activeFilter !== 'all') {
         if (cp.type !== this.activeFilter || cp.status === 'cleared') return false;
       }
 
-      // Search query
       if (this.searchQuery) {
         const text = `${cp.title} ${cp.locationName} ${cp.province} ${cp.district || ''} ${cp.typeLabel} ${cp.description || ''}`.toLowerCase();
         if (!text.includes(this.searchQuery)) return false;
@@ -254,7 +663,6 @@ class CheckDanApp {
   render() {
     const filtered = this.getFilteredCheckpoints();
     
-    // Sort by proximity if user location is known, else by latest report
     const userCoords = window.mapManager.userCoords;
     if (userCoords) {
       filtered.sort((a, b) => {
@@ -264,12 +672,10 @@ class CheckDanApp {
       });
     }
 
-    // Render Markers on Leaflet Map
     window.mapManager.renderCheckpoints(filtered, (cp) => {
       this.highlightCheckpointInList(cp.id);
     });
 
-    // Render Sidebar / Bottom Sheet List
     this.renderList(filtered);
     this.updateStats();
   }
@@ -280,10 +686,7 @@ class CheckDanApp {
     const emptyState = document.getElementById('empty-state');
     const counterEl = document.getElementById('results-count');
 
-    if (counterEl) {
-      counterEl.textContent = `พบ ${list.length} รายการ`;
-    }
-
+    if (counterEl) counterEl.textContent = `พบ ${list.length} รายการ`;
     if (!container) return;
 
     if (list.length === 0) {
@@ -310,8 +713,6 @@ class CheckDanApp {
         : '<span class="card-status active"><i class="fa-solid fa-circle-dot"></i> กำลังตั้งด่าน</span>';
 
       const typeBadgeClass = isCleared ? 'cleared' : cp.type;
-
-      // Relative time formatted
       const timeAgo = this.formatRelativeTime(cp.reportedAt);
 
       return `
@@ -336,6 +737,9 @@ class CheckDanApp {
               <span class="meta-prov"><i class="fa-solid fa-map"></i> ${cp.province}</span>
             </div>
             <div class="card-voting">
+              <button class="btn-card-share" title="แชร์ด่านนี้" onclick="event.stopPropagation(); window.socialManager.shareCheckpoint(window.app.checkpoints.find(c => c.id === '${cp.id}'));">
+                <i class="fa-solid fa-share-nodes"></i>
+              </button>
               <button class="vote-mini-btn up" title="ยืนยันว่าด่านยังอยู่" onclick="event.stopPropagation(); window.app.voteCheckpoint('${cp.id}', 'up')">
                 <i class="fa-solid fa-thumbs-up"></i> <span>${cp.verifiedCount || 0}</span>
               </button>
@@ -371,8 +775,6 @@ class CheckDanApp {
 
     window.mapManager.flyTo(cp.lat, cp.lng, 15);
     this.highlightCheckpointInList(cp.id);
-
-    // Open detail modal directly
     this.showCheckpointDetails(checkpointId);
   }
 
@@ -385,10 +787,10 @@ class CheckDanApp {
     }
   }
 
-  // Checkpoint Details & Community Verification Modal
   showCheckpointDetails(checkpointId) {
     const cp = this.checkpoints.find((c) => c.id === checkpointId);
     if (!cp) return;
+    this.selectedCheckpoint = cp;
 
     const modal = document.getElementById('detail-modal');
     if (!modal) return;
@@ -418,7 +820,6 @@ class CheckDanApp {
     document.getElementById('detail-count-up').textContent = cp.verifiedCount || 0;
     document.getElementById('detail-count-down').textContent = cp.clearedCount || 0;
 
-    // Set onclick for vote buttons in modal
     const btnVoteUp = document.getElementById('modal-btn-vote-up');
     const btnVoteDown = document.getElementById('modal-btn-vote-down');
     btnVoteUp.onclick = () => {
@@ -430,7 +831,6 @@ class CheckDanApp {
       this.showCheckpointDetails(cp.id);
     };
 
-    // Google Maps navigation link
     const gmapsBtn = document.getElementById('detail-gmaps-link');
     if (gmapsBtn) {
       gmapsBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${cp.lat},${cp.lng}`;
@@ -439,21 +839,17 @@ class CheckDanApp {
     modal.classList.add('show');
   }
 
-  // Community Voting Function
   voteCheckpoint(id, type) {
     const cp = this.checkpoints.find((c) => c.id === id);
     if (!cp) return;
 
     if (type === 'up') {
       cp.verifiedCount = (cp.verifiedCount || 0) + 1;
-      if (cp.status === 'cleared') {
-        cp.status = 'active'; // Revived by community
-      }
+      if (cp.status === 'cleared') cp.status = 'active';
       this.showToast('👍 ขอบคุณที่ร่วมยืนยันสถานะด่าน!', 'success');
       window.soundManager.playSuccess();
     } else if (type === 'down') {
       cp.clearedCount = (cp.clearedCount || 0) + 1;
-      // Auto-mark cleared if cleared votes heavily outweigh verified votes
       if (cp.clearedCount >= (cp.verifiedCount || 0) + 3) {
         cp.status = 'cleared';
         this.showToast('✅ ด่านนี้ถูกบันทึกสถานะว่า "เคลียร์แล้ว"', 'info');
@@ -467,12 +863,10 @@ class CheckDanApp {
     this.render();
   }
 
-  // Open Report Modal
   openReportModal() {
     const modal = document.getElementById('report-modal');
     if (!modal) return;
 
-    // Prefill coordinates if user location known
     const userCoords = window.mapManager.userCoords;
     if (userCoords) {
       document.getElementById('report-lat').value = userCoords.lat.toFixed(6);
@@ -496,7 +890,7 @@ class CheckDanApp {
     const title = document.getElementById('report-title').value.trim();
     const type = document.getElementById('report-type').value;
     const locationName = document.getElementById('report-location').value.trim();
-    const province = document.getElementById('report-province').value.trim();
+    const province = document.getElementById('report-province-select').value;
     const direction = document.getElementById('report-direction').value.trim();
     const description = document.getElementById('report-notes').value.trim();
     const reportedBy = document.getElementById('report-reporter').value.trim() || 'พลเมืองดี';
@@ -536,7 +930,6 @@ class CheckDanApp {
       severity: 'medium'
     };
 
-    // Prepend to list
     this.checkpoints.unshift(newCheckpoint);
     window.githubSync.saveLocalCache(this.checkpoints);
 
@@ -545,13 +938,12 @@ class CheckDanApp {
     this.flyToAndOpen(newCheckpoint.id);
 
     window.soundManager.playSuccess();
+    window.voiceManager.speak(`บันทึกรายงาน ${newCheckpoint.title} เรียบร้อยแล้วค่ะ ขอบคุณที่ร่วมแบ่งปันข้อมูลค่ะ`);
     this.showToast('🎉 แจ้งจุดตรวจด่านสำเร็จแล้ว! ข้อมูลถูกบันทึกลงระบบเรียบร้อย', 'success');
 
-    // Reset form
     document.getElementById('report-form').reset();
   }
 
-  // GitHub Settings & Sync Modal
   openGitHubModal() {
     const modal = document.getElementById('github-modal');
     if (!modal) return;
@@ -563,7 +955,6 @@ class CheckDanApp {
     document.getElementById('gh-path').value = config.filePath || 'data/checkpoints.json';
     document.getElementById('gh-token').value = config.token || '';
 
-    // Direct export JSON button
     const btnExport = document.getElementById('btn-export-json');
     if (btnExport) {
       btnExport.onclick = () => {
@@ -572,7 +963,6 @@ class CheckDanApp {
       };
     }
 
-    // Direct Save GitHub Config
     const formConfig = document.getElementById('github-config-form');
     if (formConfig) {
       formConfig.onsubmit = async (e) => {
@@ -590,7 +980,6 @@ class CheckDanApp {
       };
     }
 
-    // Direct Push via API button
     const btnPushAPI = document.getElementById('btn-push-github-api');
     if (btnPushAPI) {
       btnPushAPI.onclick = async () => {
@@ -608,7 +997,6 @@ class CheckDanApp {
       };
     }
 
-    // Reset default data
     const btnReset = document.getElementById('btn-reset-data');
     if (btnReset) {
       btnReset.onclick = () => {
@@ -660,7 +1048,6 @@ class CheckDanApp {
   }
 }
 
-// Initialize Application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new CheckDanApp();
   window.app.init();

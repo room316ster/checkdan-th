@@ -1,4 +1,4 @@
-// Leaflet Map Manager for CheckDan Thailand
+// Leaflet Map Manager for CheckDan Thailand (100% Free OpenStreetMap & Esri Layers)
 class MapManager {
   constructor() {
     this.map = null;
@@ -20,26 +20,27 @@ class MapManager {
     this.map = L.map(containerId, {
       center: defaultCenter,
       zoom: defaultZoom,
-      zoomControl: false // custom position
+      zoomControl: false
     });
 
     // Custom zoom control in bottom right
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
 
-    // Initialize Tile Layers
+    // Initialize 100% Free Tile Layers (NO API KEY REQUIRED)
     this.tileLayers = {
-      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
+      dark: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        subdomains: ['a', 'b', 'c'],
+        className: 'map-tiles-dark',
         maxZoom: 19
       }),
-      streets: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
-        subdomains: 'abcd',
+      streets: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        subdomains: ['a', 'b', 'c'],
         maxZoom: 19
       }),
       satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP',
         maxZoom: 18
       })
     };
@@ -70,6 +71,14 @@ class MapManager {
     const layer = this.tileLayers[themeName] || this.tileLayers.dark;
     this.activeTileLayer = layer;
     this.activeTileLayer.addTo(this.map);
+
+    // Toggle theme class on map container for precision pane styling
+    const mapEl = document.getElementById('map');
+    if (mapEl) {
+      mapEl.classList.toggle('map-theme-dark', themeName === 'dark');
+      mapEl.classList.toggle('map-theme-streets', themeName === 'streets');
+      mapEl.classList.toggle('map-theme-satellite', themeName === 'satellite');
+    }
   }
 
   // Get custom HTML icon based on checkpoint type & status
@@ -126,10 +135,15 @@ class MapManager {
         ? '<span class="status-tag active"><i class="fa-solid fa-circle-dot"></i> กำลังตั้งด่าน</span>'
         : '<span class="status-tag cleared"><i class="fa-solid fa-circle-check"></i> ยกเลิก/เคลียร์แล้ว</span>';
 
+      const speedLimitTag = cp.type === 'speed'
+        ? '<span style="background: rgba(6,182,212,0.2); color: #38bdf8; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;">จำกัด 90 กม./ชม.</span>'
+        : '';
+
       const popupContent = `
         <div class="map-popup-card">
           <div class="popup-header">
             <span class="popup-type ${cp.type}">${cp.typeLabel}</span>
+            ${speedLimitTag}
             ${statusBadge}
           </div>
           <h3 class="popup-title">${cp.title}</h3>
@@ -172,7 +186,6 @@ class MapManager {
       this.map.removeLayer(this.radarCircle);
     }
 
-    // User position marker with radar ripple
     const userIcon = L.divIcon({
       className: 'user-loc-div-icon',
       html: `

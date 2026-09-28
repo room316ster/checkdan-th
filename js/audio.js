@@ -79,6 +79,37 @@ class SoundManager {
     }
   }
 
+  // Distinctive Speed Camera & Laser Radar Detector Alert Tone (Fast sharp chirps)
+  playSpeedRadarAlert() {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      // 4 rapid laser radar pulses (1200Hz -> 1800Hz)
+      [0, 0.09, 0.18, 0.27].forEach((offset) => {
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1400, now + offset);
+        osc.frequency.exponentialRampToValueAtTime(1850, now + offset + 0.06);
+
+        gain.gain.setValueAtTime(0.16, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.07);
+
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.08);
+      });
+    } catch (e) {
+      console.warn('Speed radar audio error:', e);
+    }
+  }
+
   // Success confirmation tone (e.g. checkpoint reported or voted)
   playSuccess() {
     if (!this.enabled) return;

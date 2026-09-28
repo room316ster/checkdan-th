@@ -1,0 +1,19 @@
+{
+  "name": "CheckDan TH - เรดาร์ด่านตรวจจราจร & นำทางอัจฉริยะ",
+  "short_name": "CheckDan",
+  "description": "ระบบตรวจสอบจุดตรวจด่านจราจร ด่านเป่าแอลกอฮอล์ กล้องจับความเร็ว และเรดาร์เตือนภัยด้วยเสียง ครอบคลุม 77 จังหวัด",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0e17",
+  "theme_color": "#00f2fe",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='128' fill='%230a0e17'/><circle cx='256' cy='256' r='200' fill='none' stroke='%2300f2fe' stroke-width='16' stroke-dasharray='30 20'/><circle cx='256' cy='256' r='140' fill='none' stroke='%233b82f6' stroke-width='12'/><circle cx='256' cy='256' r='36' fill='%2300f2fe'/><polygon points='256,120 290,256 222,256' fill='%23ff3366'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["navigation", "travel", "utilities"]
+}

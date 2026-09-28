@@ -1,0 +1,100 @@
+// Complete 77 Provinces of Thailand with Coordinates & Regions
+window.THAILAND_PROVINCES = [
+  // ภาคกลาง (Central)
+  { id: "BKK", name: "กรุงเทพมหานคร", region: "central", lat: 13.7563, lng: 100.5018 },
+  { id: "NON", name: "นนทบุรี", region: "central", lat: 13.8591, lng: 100.5217 },
+  { id: "PTE", name: "ปทุมธานี", region: "central", lat: 14.0208, lng: 100.5250 },
+  { id: "SPK", name: "สมุทรปราการ", region: "central", lat: 13.5991, lng: 100.5968 },
+  { id: "AYA", name: "พระนครศรีอยุธยา", region: "central", lat: 14.3532, lng: 100.5684 },
+  { id: "ANG", name: "อ่างทอง", region: "central", lat: 14.5896, lng: 100.4550 },
+  { id: "LOB", name: "ลพบุรี", region: "central", lat: 14.7995, lng: 100.6534 },
+  { id: "SBR", name: "สิงห์บุรี", region: "central", lat: 14.8879, lng: 100.3967 },
+  { id: "CNB", name: "ชัยนาท", region: "central", lat: 15.1852, lng: 100.1252 },
+  { id: "SAR", name: "สระบุรี", region: "central", lat: 14.5289, lng: 100.9108 },
+  { id: "NYK", name: "นครนายก", region: "central", lat: 14.2069, lng: 101.2131 },
+  { id: "NPT", name: "นครปฐม", region: "central", lat: 13.8196, lng: 100.0601 },
+  { id: "SKN", name: "สมุทรสาคร", region: "central", lat: 13.5475, lng: 100.2744 },
+  { id: "SKM", name: "สมุทรสงคราม", region: "central", lat: 13.4098, lng: 99.9968 },
+  { id: "SPB", name: "สุพรรณบุรี", region: "central", lat: 14.4745, lng: 100.1177 },
+  
+  // ภาคเหนือ (Northern)
+  { id: "CMI", name: "เชียงใหม่", region: "north", lat: 18.7883, lng: 98.9853 },
+  { id: "CRI", name: "เชียงราย", region: "north", lat: 19.9076, lng: 99.8325 },
+  { id: "LPN", name: "ลำพูน", region: "north", lat: 18.5745, lng: 99.0087 },
+  { id: "LPG", name: "ลำปาง", region: "north", lat: 18.2888, lng: 99.4928 },
+  { id: "PRE", name: "แพร่", region: "north", lat: 18.1446, lng: 100.1411 },
+  { id: "NAN", name: "น่าน", region: "north", lat: 18.7756, lng: 100.7730 },
+  { id: "PYO", name: "พะเยา", region: "north", lat: 19.1664, lng: 99.9022 },
+  { id: "MSN", name: "แม่ฮ่องสอน", region: "north", lat: 19.3021, lng: 97.9654 },
+  { id: "UTD", name: "อุตรดิตถ์", region: "north", lat: 17.6201, lng: 100.0993 },
+  { id: "PLK", name: "พิษณุโลก", region: "north", lat: 16.8211, lng: 100.2659 },
+  { id: "SKT", name: "สุโขทัย", region: "north", lat: 17.0056, lng: 99.8264 },
+  { id: "PCT", name: "พิจิตร", region: "north", lat: 16.4429, lng: 100.3496 },
+  { id: "KPT", name: "กำแพงเพชร", region: "north", lat: 16.4828, lng: 99.5227 },
+  { id: "NSN", name: "นครสวรรค์", region: "north", lat: 15.6987, lng: 100.1199 },
+  { id: "UTI", name: "อุทัยธานี", region: "north", lat: 15.3835, lng: 100.0245 },
+  { id: "PET", name: "เพชรบูรณ์", region: "north", lat: 16.4190, lng: 101.1567 },
+
+  // ภาคตะวันออกเฉียงเหนือ / อีสาน (Northeastern)
+  { id: "NMA", name: "นครราชสีมา", region: "northeast", lat: 14.9799, lng: 102.0978 },
+  { id: "KKN", name: "ขอนแก่น", region: "northeast", lat: 16.4322, lng: 102.8236 },
+  { id: "UDN", name: "อุดรธานี", region: "northeast", lat: 17.4138, lng: 102.7872 },
+  { id: "UBN", name: "อุบลราชธานี", region: "northeast", lat: 15.2448, lng: 104.8473 },
+  { id: "BRM", name: "บุรีรัมย์", region: "northeast", lat: 14.9930, lng: 103.1029 },
+  { id: "SRN", name: "สุรินทร์", region: "northeast", lat: 14.8818, lng: 103.4936 },
+  { id: "SSK", name: "ศรีสะเกษ", region: "northeast", lat: 15.1186, lng: 104.3220 },
+  { id: "RET", name: "ร้อยเอ็ด", region: "northeast", lat: 16.0538, lng: 103.6520 },
+  { id: "CPM", name: "ชัยภูมิ", region: "northeast", lat: 15.8105, lng: 102.0315 },
+  { id: "MKM", name: "มหาสารคาม", region: "northeast", lat: 16.1852, lng: 103.3007 },
+  { id: "KSN", name: "กาฬสินธุ์", region: "northeast", lat: 16.4329, lng: 103.5065 },
+  { id: "SNK", name: "สกลนคร", region: "northeast", lat: 17.1664, lng: 104.1486 },
+  { id: "NPM", name: "นครพนม", region: "northeast", lat: 17.4042, lng: 104.7788 },
+  { id: "MDH", name: "มุกดาหาร", region: "northeast", lat: 16.5436, lng: 104.7235 },
+  { id: "YST", name: "ยโสธร", region: "northeast", lat: 15.7926, lng: 104.1453 },
+  { id: "ACR", name: "อำนาจเจริญ", region: "northeast", lat: 15.8585, lng: 104.6258 },
+  { id: "NKI", name: "หนองคาย", region: "northeast", lat: 17.8783, lng: 102.7420 },
+  { id: "BKN", name: "บึงกาฬ", region: "northeast", lat: 18.3630, lng: 103.6529 },
+  { id: "NBP", name: "หนองบัวลำภู", region: "northeast", lat: 17.2044, lng: 102.4407 },
+  { id: "LEI", name: "เลย", region: "northeast", lat: 17.4860, lng: 101.7223 },
+
+  // ภาคตะวันออก (Eastern)
+  { id: "CBI", name: "ชลบุรี", region: "east", lat: 13.3611, lng: 100.9847 },
+  { id: "RYG", name: "ระยอง", region: "east", lat: 12.6814, lng: 101.2816 },
+  { id: "CTI", name: "จันทบุรี", region: "east", lat: 12.6114, lng: 102.1039 },
+  { id: "TRT", name: "ตราด", region: "east", lat: 12.2428, lng: 102.5175 },
+  { id: "CCO", name: "ฉะเชิงเทรา", region: "east", lat: 13.6904, lng: 101.0779 },
+  { id: "PRI", name: "ปราจีนบุรี", region: "east", lat: 14.0509, lng: 101.3734 },
+  { id: "SKW", name: "สระแก้ว", region: "east", lat: 13.8140, lng: 102.0716 },
+
+  // ภาคตะวันตก (Western)
+  { id: "RBR", name: "ราชบุรี", region: "west", lat: 13.5283, lng: 99.8134 },
+  { id: "KRI", name: "กาญจนบุรี", region: "west", lat: 14.0228, lng: 99.5328 },
+  { id: "TAK", name: "ตาก", region: "west", lat: 16.8839, lng: 99.1258 },
+  { id: "PBI", name: "เพชรบุรี", region: "west", lat: 13.1119, lng: 99.9398 },
+  { id: "PKN", name: "ประจวบคีรีขันธ์", region: "west", lat: 11.8124, lng: 99.7973 },
+
+  // ภาคใต้ (Southern)
+  { id: "CPN", name: "ชุมพร", region: "south", lat: 10.4930, lng: 99.1800 },
+  { id: "RNG", name: "ระนอง", region: "south", lat: 9.9529, lng: 98.6348 },
+  { id: "SNI", name: "สุราษฎร์ธานี", region: "south", lat: 9.1382, lng: 99.3217 },
+  { id: "PKT", name: "ภูเก็ต", region: "south", lat: 7.8804, lng: 98.3923 },
+  { id: "PNA", name: "พังงา", region: "south", lat: 8.4509, lng: 98.5300 },
+  { id: "KBI", name: "กระบี่", region: "south", lat: 8.0863, lng: 98.9063 },
+  { id: "NSI", name: "นครศรีธรรมราช", region: "south", lat: 8.4304, lng: 99.9631 },
+  { id: "TRG", name: "ตรัง", region: "south", lat: 7.5563, lng: 99.6114 },
+  { id: "PLG", name: "พัทลุง", region: "south", lat: 7.6167, lng: 100.0740 },
+  { id: "SKA", name: "สงขลา", region: "south", lat: 7.1898, lng: 100.5954 },
+  { id: "STN", name: "สตูล", region: "south", lat: 6.6238, lng: 100.0674 },
+  { id: "PTN", name: "ปัตตานี", region: "south", lat: 6.8674, lng: 101.2501 },
+  { id: "YLA", name: "ยะลา", region: "south", lat: 6.5411, lng: 101.2804 },
+  { id: "NWT", name: "นราธิวาส", region: "south", lat: 6.4255, lng: 101.8253 }
+];
+
+window.REGION_LABELS = {
+  central: "ภาคกลาง",
+  north: "ภาคเหนือ",
+  northeast: "ภาคอีสาน",
+  east: "ภาคตะวันออก",
+  west: "ภาคตะวันตก",
+  south: "ภาคใต้"
+};
