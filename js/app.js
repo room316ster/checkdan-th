@@ -1029,7 +1029,7 @@ class CheckDanApp {
       const timeAgo = this.formatRelativeTime(cp.reportedAt, cp.type, cp.status);
 
       return `
-        <div class="checkpoint-card ${isCleared ? 'is-cleared' : ''}" id="card-${cp.id}" onclick="window.app.flyToAndOpen('${cp.id}')">
+        <div class="checkpoint-card ${isCleared ? 'is-cleared' : ''}" id="card-${cp.id}" style="flex-shrink: 0 !important; min-height: 110px !important; display: flex; flex-direction: column;" onclick="window.app.flyToAndOpen('${cp.id}')">
           <div class="card-top">
             <div class="card-type-row">
               <span class="card-type-badge ${typeBadgeClass}">${cp.typeLabel}</span>

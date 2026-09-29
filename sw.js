@@ -1,5 +1,5 @@
 // CheckDan TH Service Worker for PWA Offline Caching
-const CACHE_NAME = 'checkdan-cache-v15';
+const CACHE_NAME = 'checkdan-cache-v16';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -599,7 +599,11 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
    Checkpoint Card
    ========================================================================== */
 .checkpoint-card {
-  flex-shrink: 0;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  min-height: 110px;
+  height: auto;
+  box-sizing: border-box;
   background: var(--bg-card);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -609,7 +613,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .checkpoint-card::before {
@@ -1385,22 +1389,38 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   background: #0b0f19;
 }
 
+/* Stackable Radar HUD Alerts Container (Prevents banner overlap) */
+.radar-hud-stack {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  max-width: 92%;
+  width: 580px;
+}
+
 /* Proximity Radar Warning HUD Banner */
 .proximity-radar-hud {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-120%);
-  z-index: 1000;
-  max-width: 90%;
-  width: 580px;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  max-width: 100%;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
+  display: none;
   opacity: 0;
 }
 
 .proximity-radar-hud.visible {
-  transform: translateX(-50%) translateY(0);
+  display: block;
   opacity: 1;
   pointer-events: auto;
 }
@@ -2421,15 +2441,19 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
     display: none !important;
   }
 
-  .proximity-radar-hud {
+  .radar-hud-stack {
     width: 95% !important;
     top: 8px !important;
+    gap: 8px !important;
+  }
+
+  .proximity-radar-hud {
+    width: 100% !important;
   }
 
   .speed-camera-radar-banner,
   .blackspot-radar-banner {
-    width: 94% !important;
-    top: 60px !important;
+    width: 100% !important;
     padding: 10px 14px !important;
   }
 
@@ -2536,30 +2560,29 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
    Speed Camera & Laser Radar Detection HUD Alert
    ========================================================================== */
 .speed-camera-radar-banner {
-  position: absolute;
-  top: 95px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-140%);
-  z-index: 1001;
-  max-width: 90%;
-  width: 580px;
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  max-width: 100%;
   background: rgba(8, 14, 28, 0.95);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border: 2px solid #06b6d4;
   border-radius: var(--radius-lg);
   padding: 14px 20px;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 16px;
   box-shadow: 0 0 35px rgba(6, 182, 212, 0.5);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   opacity: 0;
   pointer-events: none;
 }
 
 .speed-camera-radar-banner.visible {
-  transform: translateX(-50%) translateY(0);
+  display: flex;
   opacity: 1;
   pointer-events: auto;
 }
@@ -3377,30 +3400,29 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
    Accident Blackspot & Sharp Curve Warning Banner
    ========================================================================== */
 .blackspot-radar-banner {
-  position: absolute;
-  top: 95px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-140%);
-  z-index: 1001;
-  max-width: 90%;
-  width: 580px;
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  max-width: 100%;
   background: rgba(28, 18, 8, 0.96);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border: 2px solid #f59e0b;
   border-radius: var(--radius-lg);
   padding: 14px 20px;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 16px;
   box-shadow: 0 0 35px rgba(245, 158, 11, 0.5);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   opacity: 0;
   pointer-events: none;
 }
 
 .blackspot-radar-banner.visible {
-  transform: translateX(-50%) translateY(0);
+  display: flex;
   opacity: 1;
   pointer-events: auto;
 }

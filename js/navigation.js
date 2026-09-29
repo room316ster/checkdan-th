@@ -557,7 +557,7 @@ class NavigationManager {
       }
 
       html += `
-        <div class="${cardClass}" onclick="window.navigationManager.focusStepOnMap(${step.index})">
+        <div class="${cardClass}" style="flex-shrink: 0;" onclick="window.navigationManager.focusStepOnMap(${step.index})">
           <div class="step-icon-col">
             <i class="fa-solid ${step.icon}"></i>
           </div>
