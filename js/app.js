@@ -413,20 +413,37 @@ class CheckDanApp {
     }
 
     // Trip Summary Share Actions
+    // Trip Summary Share Actions
+    const getTripDataFromModal = () => {
+      const dist = parseFloat(document.getElementById('trip-stat-dist')?.textContent) || 0;
+      const time = parseInt(document.getElementById('trip-stat-time')?.textContent) || 0;
+      const avgSpd = parseInt(document.getElementById('trip-stat-avgspd')?.textContent) || 0;
+      const maxSpd = parseInt(document.getElementById('trip-stat-maxspd')?.textContent) || 0;
+      const cpCount = parseInt(document.getElementById('trip-stat-cpcount')?.textContent) || 0;
+      const camCount = parseInt(document.getElementById('trip-stat-camcount')?.textContent) || 0;
+      return { distanceKm: dist, durationMin: time, avgSpeed: avgSpd, maxSpeed: maxSpd, checkpointCount: cpCount, cameraCount: camCount };
+    };
+
     const btnShareLine = document.getElementById('btn-share-trip-line');
     if (btnShareLine) {
       btnShareLine.addEventListener('click', () => {
-        const dist = document.getElementById('trip-stat-dist')?.textContent || '0 กม.';
-        const time = document.getElementById('trip-stat-time')?.textContent || '0 นาที';
-        const text = encodeURIComponent(`🚗 สรุปการเดินทางด้วย CheckDan TH\nระยะทาง: ${dist} | เวลา: ${time}\nเดินทางปลอดภัย ไร้ด่าน ตรวจเช็กเรียลไทม์ที่: https://checkdan.th`);
-        window.open(`https://line.me/R/msg/text/?${text}`, '_blank');
+        window.socialManager.shareTrip(getTripDataFromModal());
+        window.socialManager.shareToLine();
       });
     }
 
     const btnShareFb = document.getElementById('btn-share-trip-fb');
     if (btnShareFb) {
       btnShareFb.addEventListener('click', () => {
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank');
+        window.socialManager.shareTrip(getTripDataFromModal());
+        window.socialManager.shareToFacebook();
+      });
+    }
+
+    const btnShareTripMore = document.getElementById('btn-share-trip-more');
+    if (btnShareTripMore) {
+      btnShareTripMore.addEventListener('click', () => {
+        window.socialManager.shareTrip(getTripDataFromModal());
       });
     }
 
@@ -2646,6 +2663,9 @@ class CheckDanApp {
             </button>
             <button class="btn-attraction-route" onclick="window.attractionsManager.focusAttraction(${item.lat}, ${item.lng})" title="ปักหมุดบนแผนที่">
               <i class="fa-solid fa-map-pin"></i> ดูแผนที่
+            </button>
+            <button class="btn-attraction-route" onclick="window.socialManager.shareAttraction(window.attractionsManager.attractions.find(a => a.id === '${item.id}'))" title="แชร์สถานที่ท่องเที่ยวนี้ไปยัง Social">
+              <i class="fa-solid fa-share-nodes"></i> แชร์
             </button>
           </div>
         </div>

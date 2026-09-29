@@ -151,6 +151,12 @@
         <span>พิกัดฉัน</span>
       </button>
 
+      <!-- Social Share App Button -->
+      <button id="btn-header-share" class="header-btn btn-share-app" title="แชร์แอปคู่หูนักเดินทางไปยัง Social ต่าง ๆ (LINE, Facebook, X, etc.)">
+        <i class="fa-solid fa-share-nodes"></i>
+        <span>แชร์</span>
+      </button>
+
       <!-- GitHub Sync & Settings (Admin Only) -->
       <button id="btn-github-settings" class="header-btn btn-github" title="ตั้งค่าและซิงค์ข้อมูลกับ GitHub (เฉพาะผู้ดูแลระบบ)" style="display: none;">
         <i class="fa-brands fa-github"></i>
@@ -234,6 +240,14 @@
           <div class="menu-item-text">
             <span class="title">ค้นหาแหล่งท่องเที่ยว 77 จังหวัด</span>
             <span class="sub">ธรรมชาติ ทะเล วัด คาเฟ่ & นำทาง</span>
+          </div>
+          <i class="fa-solid fa-chevron-right" style="font-size: 11px; color: var(--text-dim);"></i>
+        </button>
+        <button class="mobile-menu-item" id="menu-item-share-app" onclick="window.socialManager.shareApp();">
+          <i class="fa-solid fa-share-nodes" style="color: #38bdf8;"></i>
+          <div class="menu-item-text">
+            <span class="title">แชร์แอปคู่หูนักเดินทาง</span>
+            <span class="sub">แชร์ไปยัง LINE, Facebook, X, WhatsApp</span>
           </div>
           <i class="fa-solid fa-chevron-right" style="font-size: 11px; color: var(--text-dim);"></i>
         </button>
@@ -1530,6 +1544,9 @@
           <button id="btn-share-trip-fb" class="btn-share-social fb">
             <i class="fa-brands fa-facebook"></i> แชร์ลง Facebook
           </button>
+          <button id="btn-share-trip-more" class="btn-share-social" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: #ffffff; border: 1px solid rgba(139, 92, 246, 0.5);">
+            <i class="fa-solid fa-share-nodes"></i> แชร์ไปยัง Social อื่น ๆ
+          </button>
         </div>
       </div>
       <div class="modal-footer">
@@ -1591,29 +1608,29 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Application Logic & Extension Modules -->
-  <script src="js/provinces-data.js?v=18"></script>
-  <script src="js/mock-data.js?v=18"></script>
-  <script src="js/audio.js?v=18"></script>
-  <script src="js/device.js?v=18"></script>
-  <script src="js/voice.js?v=18"></script>
-  <script src="js/voice-command.js?v=18"></script>
-  <script src="js/services.js?v=18"></script>
-  <script src="js/attractions.js?v=18"></script>
-  <script src="js/install-tracker.js?v=18"></script>
-  <script src="js/weather-radar.js?v=18"></script>
-  <script src="js/location.js?v=18"></script>
-  <script src="js/hud.js?v=18"></script>
-  <script src="js/sos.js?v=18"></script>
-  <script src="js/social.js?v=18"></script>
-  <script src="js/github-sync.js?v=18"></script>
-  <script src="js/place-search.js?v=18"></script>
-  <script src="js/routing.js?v=18"></script>
-  <script src="js/blackspots.js?v=18"></script>
-  <script src="js/traffic.js?v=18"></script>
-  <script src="js/trip-logger.js?v=18"></script>
-  <script src="js/navigation.js?v=18"></script>
-  <script src="js/map.js?v=18"></script>
-  <script src="js/app.js?v=18"></script>
+  <script src="js/provinces-data.js?v=19"></script>
+  <script src="js/mock-data.js?v=19"></script>
+  <script src="js/audio.js?v=19"></script>
+  <script src="js/device.js?v=19"></script>
+  <script src="js/voice.js?v=19"></script>
+  <script src="js/voice-command.js?v=19"></script>
+  <script src="js/services.js?v=19"></script>
+  <script src="js/attractions.js?v=19"></script>
+  <script src="js/install-tracker.js?v=19"></script>
+  <script src="js/weather-radar.js?v=19"></script>
+  <script src="js/location.js?v=19"></script>
+  <script src="js/hud.js?v=19"></script>
+  <script src="js/sos.js?v=19"></script>
+  <script src="js/social.js?v=19"></script>
+  <script src="js/github-sync.js?v=19"></script>
+  <script src="js/place-search.js?v=19"></script>
+  <script src="js/routing.js?v=19"></script>
+  <script src="js/blackspots.js?v=19"></script>
+  <script src="js/traffic.js?v=19"></script>
+  <script src="js/trip-logger.js?v=19"></script>
+  <script src="js/navigation.js?v=19"></script>
+  <script src="js/map.js?v=19"></script>
+  <script src="js/app.js?v=19"></script>
 
 </body>
 </html>

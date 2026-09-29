@@ -1954,6 +1954,10 @@ class AttractionsManager {
                     style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #ffffff; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;" title="ตั้งเป็นจุดหมายสแกนด่าน">
               <i class="fa-solid fa-route"></i> สแกนทาง
             </button>
+            <button onclick="window.socialManager.shareAttraction(window.attractionsManager.attractions.find(a => a.id === '${item.id}'))" 
+                    style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; color: #38bdf8; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;" title="แชร์สถานที่นี้ไปยัง Social">
+              <i class="fa-solid fa-share-nodes"></i> แชร์
+            </button>
           </div>
         </div>
       `;

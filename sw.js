@@ -1,5 +1,5 @@
 // คู่หูนักเดินทาง (Travel Companion) Service Worker for PWA Offline Caching
-const CACHE_NAME = 'khuhunakderntang-cache-v18';
+const CACHE_NAME = 'khuhunakderntang-cache-v19';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

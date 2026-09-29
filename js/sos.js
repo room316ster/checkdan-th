@@ -98,7 +98,7 @@ class SOSManager {
   }
 
   shareDistressLocation() {
-    const userCoords = window.mapManager.userCoords;
+    const userCoords = window.mapManager ? window.mapManager.userCoords : null;
     if (!userCoords) {
       window.app.showToast('⚠️ ไม่พบพิกัด GPS ปัจจุบัน กรุณากดปุ่ม "พิกัดฉัน" ก่อนแชร์', 'warning');
       return;
@@ -108,21 +108,21 @@ class SOSManager {
     const roadInfo = (window.locationManager && window.locationManager.currentLocation && window.locationManager.currentLocation.road) 
       ? `บริเวณ ${window.locationManager.currentLocation.road} ` 
       : '';
-    const gmapsUrl = `https://maps.google.com/?q=${userCoords.lat},${userCoords.lng}`;
-    
-    let text = `🚨 [ขอความช่วยเหลือฉุกเฉิน!] รถเสีย/ต้องการความช่วยเหลือ\n`;
-    if (areaText) {
-      text += `📍 พื้นที่ปัจจุบัน: ${roadInfo}${areaText}\n`;
-    }
-    text += `📌 พิกัด GPS: ${userCoords.lat.toFixed(5)}, ${userCoords.lng.toFixed(5)}\n🌐 เปิดแผนที่ระบุตำแหน่ง: ${gmapsUrl}`;
+    const fullLoc = `${roadInfo}${areaText}`.trim() || 'ประเทศไทย';
 
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        window.app.showToast('📋 คัดลอกข้อความและพิกัดฉุกเฉินแล้ว! สามารถวางส่งใน LINE หรือ SMS ได้ทันที', 'success');
-        window.soundManager.playSuccess();
-      });
+    if (window.socialManager) {
+      window.socialManager.shareSOS(userCoords.lat, userCoords.lng, fullLoc);
     } else {
-      window.app.showToast(gmapsUrl, 'info');
+      const gmapsUrl = `https://maps.google.com/?q=${userCoords.lat},${userCoords.lng}`;
+      const text = `🚨 [ขอความช่วยเหลือฉุกเฉิน!] รถเสีย/ต้องการความช่วยเหลือ\n📍 พื้นที่ปัจจุบัน: ${fullLoc}\n📌 พิกัด GPS: ${userCoords.lat.toFixed(5)}, ${userCoords.lng.toFixed(5)}\n🌐 เปิดแผนที่ระบุตำแหน่ง: ${gmapsUrl}`;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          window.app.showToast('📋 คัดลอกข้อความและพิกัดฉุกเฉินแล้ว! สามารถวางส่งใน LINE หรือ SMS ได้ทันที', 'success');
+          window.soundManager.playSuccess();
+        });
+      } else {
+        window.app.showToast(gmapsUrl, 'info');
+      }
     }
   }
 }

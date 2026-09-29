@@ -156,9 +156,14 @@ class MapManager {
               <span class="vote-tag down"><i class="fa-solid fa-thumbs-down"></i> ${cp.clearedCount || 0}</span>
             </div>
           </div>
-          <button class="popup-detail-btn" onclick="window.app.showCheckpointDetails('${cp.id}')">
-            ดูรายละเอียด & ยืนยันสถานะ <i class="fa-solid fa-chevron-right"></i>
-          </button>
+          <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <button class="popup-detail-btn" style="flex: 1;" onclick="window.app.showCheckpointDetails('${cp.id}')">
+              ดูรายละเอียด & ยืนยันสถานะ <i class="fa-solid fa-chevron-right"></i>
+            </button>
+            <button class="popup-share-btn" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.35); color: #60a5fa; border-radius: 8px; padding: 0 12px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease;" title="แชร์ด่านนี้ไปยังโซเชียล (LINE, Facebook, X ฯลฯ)" onclick="event.stopPropagation(); window.socialManager.shareCheckpoint(window.app.checkpoints.find(c => c.id === '${cp.id}'));">
+              <i class="fa-solid fa-share-nodes"></i>
+            </button>
+          </div>
         </div>
       `;
 
