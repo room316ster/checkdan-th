@@ -1,5 +1,5 @@
 // CheckDan TH Service Worker for PWA Offline Caching
-const CACHE_NAME = 'checkdan-cache-v11';
+const CACHE_NAME = 'checkdan-cache-v15';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -8,7 +8,12 @@ const ASSETS_TO_CACHE = [
   './js/provinces-data.js',
   './js/mock-data.js',
   './js/audio.js',
+  './js/device.js',
   './js/voice.js',
+  './js/voice-command.js',
+  './js/services.js',
+  './js/weather-radar.js',
+  './js/location.js',
   './js/hud.js',
   './js/sos.js',
   './js/social.js',
@@ -54,6 +59,7 @@ self.addEventListener('fetch', (event) => {
       url.includes('project-osrm.org') ||
       url.includes('cartocdn.com') ||
       url.includes('github.com') ||
+      url.includes('rainviewer.com') ||
       url.includes('cdnjs.cloudflare.com') ||
       url.includes('fonts.googleapis.com')) {
     return;

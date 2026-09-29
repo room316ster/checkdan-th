@@ -153,6 +153,86 @@ class SoundManager {
       console.warn('Audio error:', e);
     }
   }
+
+  // Progressive Proximity Radar Beep (Frequency increases as distance closes like a Geiger counter)
+  updateProximityBeep(distanceKm, type = 'checkpoint') {
+    if (!this.enabled || !distanceKm || distanceKm > 1.6) {
+      this.stopProximityBeep();
+      return;
+    }
+
+    // Determine interval (ms) based on distance
+    let intervalMs = 2800; // Far (1.2 - 1.6 km)
+    if (distanceKm <= 0.15) {
+      intervalMs = 200; // Right on target (< 150m) rapid beeps!
+    } else if (distanceKm <= 0.35) {
+      intervalMs = 450; // Very close (150m - 350m)
+    } else if (distanceKm <= 0.70) {
+      intervalMs = 850; // Close (350m - 700m)
+    } else if (distanceKm <= 1.20) {
+      intervalMs = 1700; // Medium (700m - 1200m)
+    }
+
+    // If interval changed or not running, restart pulse timer
+    if (this.currentBeepInterval !== intervalMs) {
+      this.currentBeepInterval = intervalMs;
+      this.stopProximityBeep();
+      
+      // Play immediately once
+      this.playRadarBeepChirp(type, distanceKm);
+      
+      this.proximityBeepTimer = setInterval(() => {
+        this.playRadarBeepChirp(type, distanceKm);
+      }, intervalMs);
+    }
+  }
+
+  stopProximityBeep() {
+    if (this.proximityBeepTimer) {
+      clearInterval(this.proximityBeepTimer);
+      this.proximityBeepTimer = null;
+    }
+    this.currentBeepInterval = null;
+  }
+
+  playRadarBeepChirp(type, distanceKm) {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+
+      // Sharper and higher frequency for speed radar
+      const isSpeed = type === 'speed';
+      const baseFreq = isSpeed ? 1400 : 960;
+      const targetFreq = isSpeed ? 1850 : 1250;
+      const duration = distanceKm < 0.2 ? 0.045 : 0.065;
+
+      osc.type = isSpeed ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(baseFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(targetFreq, now + duration);
+
+      const vol = isSpeed ? 0.14 : 0.10;
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(this.audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + duration + 0.01);
+
+      // Light haptic pulse when very close
+      if (distanceKm < 0.3 && window.deviceManager) {
+        window.deviceManager.vibrate(25);
+      }
+    } catch (e) {
+      console.warn('Radar chirp error:', e);
+    }
+  }
 }
 
 window.soundManager = new SoundManager();

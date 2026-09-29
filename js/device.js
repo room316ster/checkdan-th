@@ -295,8 +295,15 @@ class DeviceManager {
         window.hudManager.openHUD();
       }
     } else if (tab === 'sos') {
-      const sosModal = document.getElementById('sos-modal');
-      if (sosModal) sosModal.classList.add('active');
+      if (window.sosManager) {
+        window.sosManager.openSOSModal();
+      } else {
+        const sosModal = document.getElementById('sos-modal');
+        if (sosModal) {
+          sosModal.classList.add('show');
+          sosModal.classList.add('active');
+        }
+      }
     }
   }
 

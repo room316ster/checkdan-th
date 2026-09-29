@@ -32,11 +32,48 @@ class SOSManager {
         this.shareDistressLocation();
       });
     }
+    const sosCloseBtns = document.querySelectorAll('#sos-modal .modal-close, #sos-modal .modal-backdrop');
+    sosCloseBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.closeSOSModal();
+      });
+    });
   }
 
   openSOSModal() {
     const modal = document.getElementById('sos-modal');
-    if (modal) modal.classList.add('show');
+    if (modal) {
+      modal.classList.add('show');
+      modal.classList.add('active');
+    }
+
+    // Refresh current location display
+    const userCoords = window.mapManager ? window.mapManager.userCoords : null;
+    if (userCoords && window.locationManager) {
+      window.locationManager.reverseGeocode(userCoords.lat, userCoords.lng).then(loc => {
+        const sosLocEl = document.getElementById('sos-current-area');
+        if (sosLocEl && loc) {
+          const roadInfo = loc.road ? `${loc.road} ` : '';
+          sosLocEl.textContent = `${roadInfo}${loc.fullArea}`;
+        }
+      });
+    }
+  }
+
+  closeSOSModal() {
+    const modal = document.getElementById('sos-modal');
+    if (modal) {
+      modal.classList.remove('show');
+      modal.classList.remove('active');
+    }
+    // Restore mobile bottom navigation state if on mobile
+    if (window.deviceManager && window.deviceManager.isMobileView) {
+      const activeTab = window.deviceManager.isSheetOpen ? 'checkpoints' : 'map';
+      document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === activeTab);
+      });
+      window.deviceManager.activeMobileTab = activeTab;
+    }
   }
 
   renderHotlines() {
@@ -67,8 +104,17 @@ class SOSManager {
       return;
     }
 
+    const areaText = window.locationManager ? window.locationManager.getFullAreaText() : '';
+    const roadInfo = (window.locationManager && window.locationManager.currentLocation && window.locationManager.currentLocation.road) 
+      ? `บริเวณ ${window.locationManager.currentLocation.road} ` 
+      : '';
     const gmapsUrl = `https://maps.google.com/?q=${userCoords.lat},${userCoords.lng}`;
-    const text = `🚨 [ขอความช่วยเหลือฉุกเฉิน!] รถเสีย/ต้องการความช่วยเหลือ\nพิกัด GPS ของฉัน: ${userCoords.lat.toFixed(5)}, ${userCoords.lng.toFixed(5)}\nเปิดแผนที่ระบุตำแหน่ง: ${gmapsUrl}`;
+    
+    let text = `🚨 [ขอความช่วยเหลือฉุกเฉิน!] รถเสีย/ต้องการความช่วยเหลือ\n`;
+    if (areaText) {
+      text += `📍 พื้นที่ปัจจุบัน: ${roadInfo}${areaText}\n`;
+    }
+    text += `📌 พิกัด GPS: ${userCoords.lat.toFixed(5)}, ${userCoords.lng.toFixed(5)}\n🌐 เปิดแผนที่ระบุตำแหน่ง: ${gmapsUrl}`;
 
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text).then(() => {

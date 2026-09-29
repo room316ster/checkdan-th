@@ -29,7 +29,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
 
@@ -59,6 +59,7 @@
       <!-- Voice Personality Style Selector -->
       <select id="voice-style-select" class="header-select-pill" title="เลือกบุคลิกเสียงพูดเตือน">
         <option value="sweet">👩 สาวหวาน</option>
+        <option value="siri">🍎 สิริ (Siri iOS)</option>
         <option value="police">👮 ผู้การทางหลวง</option>
         <option value="esan">🌾 สำเนียงอีสาน</option>
       </select>
@@ -155,7 +156,19 @@
             <i class="fa-solid fa-comment-dots"></i>
           </button>
         </div>
+        <div class="mobile-menu-row" style="background: rgba(0,242,254,0.06); padding: 6px 10px; border-radius: 8px;">
+          <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-microchip"></i> เอนจินเสียงอุปกรณ์:</span>
+          <span id="menu-device-voice-tag" class="menu-status-pill cyan" style="font-size: 10px;">กำลังตรวจจับ...</span>
+        </div>
         <div class="mobile-menu-divider"></div>
+        <button class="mobile-menu-item" id="menu-item-trafficd" onclick="window.app.openTrafficDModal();">
+          <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i>
+          <div class="menu-item-text">
+            <span class="title">เชื่อมต่อ TrafficD Lite</span>
+            <span class="sub">นำเข้าข้อมูลด่าน & สภาพจราจร</span>
+          </div>
+          <i class="fa-solid fa-chevron-right" style="font-size: 11px; color: var(--text-dim);"></i>
+        </button>
         <button class="mobile-menu-item" onclick="document.getElementById('btn-admin-auth').click();">
           <i class="fa-solid fa-lock" style="color: #a78bfa;"></i>
           <div class="menu-item-text">
@@ -337,6 +350,19 @@
                 <span>กรุงเทพฯ &rarr; ภูเก็ต</span>
                 <i class="fa-solid fa-chevron-right"></i>
               </button>
+              <button class="preset-route-btn" data-origin="BKK" data-dest="UBN">
+                <span>กรุงเทพฯ &rarr; อุบลราชธานี</span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+            <!-- Quick Simulation / Test Coordinate Trigger -->
+            <div style="margin-top: 10px; display: flex; gap: 8px;">
+              <button type="button" id="btn-test-loc-ubon" class="header-btn" style="flex: 1; justify-content: center; border-color: rgba(6, 182, 212, 0.4); color: #38bdf8; font-size: 11px;">
+                <i class="fa-solid fa-location-dot"></i> จำลองพิกัด อ.เมือง จ.อุบลฯ
+              </button>
+              <button type="button" class="header-btn btn-speak-current-location" style="flex: 1; justify-content: center; border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; font-size: 11px;">
+                <i class="fa-solid fa-volume-high"></i> ขานพิกัดปัจจุบัน
+              </button>
             </div>
           </div>
 
@@ -404,6 +430,27 @@
     <!-- Map View Area -->
     <section class="map-view-wrapper">
       
+      <!-- Live Mobile Radar & Speed Status Bar -->
+      <div class="live-radar-status-bar" id="live-radar-status-bar">
+        <div class="live-radar-left">
+          <span class="pulse-beacon green"></span>
+          <span class="live-radar-text" id="live-radar-text">📡 เรดาร์ GPS สด: พร้อมตรวจจับความเร็ว & ด่านตรวจ</span>
+        </div>
+        <div class="live-radar-right">
+          <span class="live-location-chip" id="live-location-chip" title="พิกัดพื้นที่ปัจจุบัน (คลิกเพื่อฟังเสียงขานตำแหน่ง)">
+            <i class="fa-solid fa-location-dot"></i>
+            <span id="live-location-name">กำลังค้นหาตำแหน่ง...</span>
+          </span>
+          <button id="btn-speak-current-location" class="live-voice-btn" title="ขานตำแหน่งปัจจุบันด้วยเสียง">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+          <span class="live-speed-tag" id="live-speed-display"><i class="fa-solid fa-gauge-high"></i> 0 กม./ชม.</span>
+          <button id="btn-refresh-live-data" class="live-refresh-btn" title="รีเฟรชข้อมูลด่านสดทันที">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+        </div>
+      </div>
+
       <!-- Proximity Warning HUD Banner -->
       <div class="proximity-radar-hud" id="proximity-radar-hud">
         <!-- Dynamic HUD alert content -->
@@ -548,6 +595,15 @@
           <button id="btn-toggle-blackspots" class="layer-toggle-btn active" title="เปิด/ปิด จุดเสี่ยงอุบัติเหตุและทางโค้งอันตราย">
             <i class="fa-solid fa-triangle-exclamation"></i> <span>จุดเสี่ยง</span>
           </button>
+          <button id="btn-toggle-services" class="layer-toggle-btn active" title="เปิด/ปิด จุดพักรถ ปั๊มน้ำมัน และจุดชาร์จ EV ทางหลวง">
+            <i class="fa-solid fa-charging-station" style="color: #10b981;"></i> <span>จุดพัก/EV</span>
+          </button>
+          <button id="btn-toggle-weather" class="layer-toggle-btn" title="เปิด/ปิด เรดาร์ฝนสด Doppler & จุดเสี่ยงน้ำท่วมขังทางหลวง">
+            <i class="fa-solid fa-cloud-showers-heavy" style="color: #38bdf8;"></i> <span>เรดาร์ฝน</span>
+          </button>
+          <button id="btn-open-trafficd-modal" class="layer-toggle-btn" title="เชื่อมต่อ & นำเข้าข้อมูล TrafficD Lite (จราจร/ด่าน)">
+            <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> <span>TrafficD</span>
+          </button>
         </div>
 
         <!-- Radar Detection Radius Selector -->
@@ -585,6 +641,14 @@
         </button>
       </div>
 
+      <!-- Floating Hands-Free Thai Voice Command Mic Button -->
+      <div class="floating-voice-cmd-btn" id="floating-voice-cmd-wrapper">
+        <button id="btn-voice-command" class="btn-voice-command" title="สั่งงานด้วยเสียงภาษาไทย (Hands-free Thai Voice Command)">
+          <i class="fa-solid fa-microphone"></i>
+          <span class="voice-pulse-ring"></span>
+        </button>
+      </div>
+
     </section>
 
   </main>
@@ -602,6 +666,16 @@
       </div>
 
       <div class="hud-actions">
+        <!-- Voice Command Button in HUD -->
+        <button id="btn-hud-voice-cmd" class="header-btn" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" title="สั่งงานด้วยเสียงภาษาไทย">
+          <i class="fa-solid fa-microphone"></i> สั่งด้วยเสียง
+        </button>
+
+        <!-- Mirror Mode Toggle Button -->
+        <button id="btn-hud-mirror" class="header-btn" style="border-color: #38bdf8; color: #38bdf8;" title="โหมดสะท้อนกระจกหน้ารถสำหรับขับขี่กลางคืน">
+          <i class="fa-solid fa-arrows-left-right"></i> สะท้อนกระจก
+        </button>
+
         <!-- Simulator Toggle Button -->
         <button id="btn-toggle-hud-sim" class="header-btn" style="border-color: var(--neon-amber); color: var(--neon-amber);">
           <i class="fa-solid fa-car-side"></i> จำลองขับรถ
@@ -651,6 +725,10 @@
     </div>
 
     <div class="hud-bottom-bar">
+      <div id="hud-location-tag" style="display: flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-location-dot" style="color: #ef4444;"></i>
+        พื้นที่: <span id="hud-location-text" style="color: #38bdf8; font-weight: 600;">กำลังระบุ...</span>
+      </div>
       <div>
         <i class="fa-solid fa-compass" style="color: var(--neon-cyan);"></i>
         ทิศมุ่งหน้า: <span id="hud-compass-direction" style="color: #ffffff; font-weight: 600;">N (เหนือ)</span>
@@ -842,6 +920,9 @@
           <div>
             <div style="font-weight: 700; color: #ffffff; font-size: 13px;">🚨 ขอความช่วยเหลือฉุกเฉิน (แชร์พิกัด)</div>
             <div style="font-size: 11px; color: var(--text-muted);">คัดลอกพิกัด GPS ปัจจุบันเพื่อส่งให้เจ้าหน้าที่/กู้ภัยผ่าน LINE/SMS</div>
+            <div style="font-size: 12px; color: #fca5a5; margin-top: 4px; font-weight: 600;">
+              <i class="fa-solid fa-location-dot"></i> พื้นที่ปัจจุบัน: <span id="sos-current-area">กำลังระบุพื้นที่...</span>
+            </div>
           </div>
           <button id="btn-share-sos-gps" class="btn-primary-action" style="padding: 7px 12px; font-size: 12px;">
             <i class="fa-solid fa-location-arrow"></i> แชร์พิกัดฉัน
@@ -862,7 +943,93 @@
   </div>
 
   <!-- ========================================================================
-       Modal 4: GitHub Sync & Deployment Setup
+       Modal 4: TrafficD Lite & Traffic Integration
+       ======================================================================== -->
+  <div class="app-modal" id="trafficd-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: #f59e0b;">
+          <i class="fa-solid fa-bolt"></i>
+          เชื่อมต่อ & นำเข้าข้อมูล TrafficD Lite (จราจร ด่าน รถติด)
+        </h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" style="gap: 14px;">
+        
+        <!-- App Info / Status Card -->
+        <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: var(--radius-md); padding: 12px; font-size: 12px; line-height: 1.6;">
+          <div style="font-weight: 700; color: #fbbf24; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-circle-info"></i> เกี่ยวกับการเชื่อมต่อแอป TrafficD Lite
+          </div>
+          <div style="color: var(--text-muted);">
+            แอป <b>TrafficD Lite จราจร ด่าน รถติด</b> เป็นแอปพลิเคชันระบบปิดของผู้พัฒนา (ไม่มี Public API ให้เว็บไซต์ดึงตรงๆ ผ่าน Web Browser ได้โดยตรงเนื่องจากติด CORS) 
+            แต่ระบบ <b>CheckDan</b> ได้เตรียมฟังก์ชันนำเข้าข้อมูล (Data Importer) และเปิดสลับแอปคู่ขนาน เพื่อให้ใช้งานร่วมกันได้อย่างสมบูรณ์แบบครับ
+          </div>
+        </div>
+
+        <!-- Quick Launch TrafficD Button Card -->
+        <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid var(--border-highlight); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-weight: 700; font-size: 13px; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-mobile-screen" style="color: var(--neon-cyan);"></i> สลับไปเปิดแอป TrafficD Lite บนโทรศัพท์
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            เปิดแอป TrafficD Lite เพื่อเช็คกล้อง CCTV ดูภาพสดบนถนน หรือตรวจสอบรายงานรถติด แล้วสลับกลับมาฟังเสียงเตือนเรดาร์ของ CheckDan ได้ทันที
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
+            <button id="btn-launch-trafficd" class="btn-primary-action" style="flex: 1; min-width: 140px; font-size: 12px; padding: 8px 12px; background: linear-gradient(135deg, #f59e0b, #d97706);" onclick="window.app.launchTrafficDApp();">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิด TrafficD Lite (แอป)
+            </button>
+            <a href="https://trafficdmap.com" target="_blank" rel="noopener noreferrer" class="header-btn" style="flex: 1; min-width: 140px; font-size: 12px; padding: 8px 12px; text-align: center; text-decoration: none; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-globe"></i> เว็บ TrafficD Map
+            </a>
+          </div>
+        </div>
+
+        <!-- Import Data / JSON from TrafficD or Community -->
+        <div style="background: rgba(16, 23, 38, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-weight: 700; font-size: 13px; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-file-import" style="color: #10b981;"></i> นำเข้าข้อมูลจุดด่าน / กล้องเรดาร์ (JSON / ข้อความ)
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            วางข้อมูลจุดตรวจ กล้องตรวจจับความเร็ว หรือพิกัดที่คัดลอกจาก TrafficD หรือกลุ่มรายงานด่าน เพื่อเพิ่มเข้าระบบเรดาร์เสียงเตือนทันที
+          </div>
+          <textarea id="trafficd-import-input" rows="3" style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: #fff; padding: 8px; font-size: 11px; font-family: monospace; resize: vertical;" placeholder='วาง JSON หรือข้อความ เช่น: [{"title":"ด่านตรวจ","lat":13.75,"lng":100.5,"type":"traffic"}] หรือ พิกัด lat, lng'></textarea>
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-import-trafficd-data" class="btn-primary-action" style="flex: 1; font-size: 12px; padding: 8px 12px;" onclick="window.app.importTrafficDData();">
+              <i class="fa-solid fa-plus-circle"></i> นำเข้าสู่แผนที่เรดาร์
+            </button>
+            <button id="btn-load-sample-trafficd" class="header-btn" style="font-size: 12px; padding: 8px 12px;" onclick="window.app.loadSampleTrafficDData();">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> โหลดตัวอย่าง
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom API / Proxy Sync -->
+        <div style="background: rgba(16, 23, 38, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-weight: 700; font-size: 13px; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-cloud-arrow-down" style="color: #8b5cf6;"></i> เชื่อมต่อ Webhook / Custom API Proxy
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            หากคุณมี API Backend หรือบริการดึงข้อมูล TrafficD สามารถใส่ URL เพื่อดึงข้อมูลมาซิงค์กับ CheckDan อัตโนมัติ:
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <input type="url" id="trafficd-api-endpoint" placeholder="https://your-api.com/trafficd/checkpoints" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: #fff; padding: 8px 12px; font-size: 12px;">
+            <button id="btn-sync-trafficd-api" class="btn-primary-action" style="font-size: 12px; padding: 8px 14px;" onclick="window.app.syncTrafficDAPI();">
+              <i class="fa-solid fa-arrows-rotate"></i> ซิงค์
+            </button>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="header-btn modal-close">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Modal 5: GitHub Sync & Deployment Setup
        ======================================================================== -->
   <div class="app-modal" id="github-modal">
     <div class="modal-backdrop"></div>
@@ -1175,9 +1342,9 @@
       </div>
       <span>ขับขี่ HUD</span>
     </button>
-    <button class="mobile-nav-btn" data-tab="sos" id="mob-nav-sos" title="เบอร์โทรฉุกเฉิน 24 ชม.">
+    <button class="mobile-nav-btn btn-open-sos" data-tab="sos" id="mob-nav-sos" title="เบอร์โทรฉุกเฉิน 24 ชม.">
       <i class="fa-solid fa-phone-volume"></i>
-      <span>ฉุกเฉิน</span>
+      <span>ฉุกเฉิน SOS</span>
     </button>
   </nav>
 
@@ -1191,22 +1358,26 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Application Logic & Extension Modules -->
-  <script src="js/provinces-data.js?v=11"></script>
-  <script src="js/mock-data.js?v=11"></script>
-  <script src="js/audio.js?v=11"></script>
-  <script src="js/device.js?v=11"></script>
-  <script src="js/voice.js?v=11"></script>
-  <script src="js/hud.js?v=11"></script>
-  <script src="js/sos.js?v=11"></script>
-  <script src="js/social.js?v=11"></script>
-  <script src="js/github-sync.js?v=11"></script>
-  <script src="js/routing.js?v=11"></script>
-  <script src="js/blackspots.js?v=11"></script>
-  <script src="js/traffic.js?v=11"></script>
-  <script src="js/trip-logger.js?v=11"></script>
-  <script src="js/navigation.js?v=11"></script>
-  <script src="js/map.js?v=11"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/provinces-data.js?v=15"></script>
+  <script src="js/mock-data.js?v=15"></script>
+  <script src="js/audio.js?v=15"></script>
+  <script src="js/device.js?v=15"></script>
+  <script src="js/voice.js?v=15"></script>
+  <script src="js/voice-command.js?v=15"></script>
+  <script src="js/services.js?v=15"></script>
+  <script src="js/weather-radar.js?v=15"></script>
+  <script src="js/location.js?v=15"></script>
+  <script src="js/hud.js?v=15"></script>
+  <script src="js/sos.js?v=15"></script>
+  <script src="js/social.js?v=15"></script>
+  <script src="js/github-sync.js?v=15"></script>
+  <script src="js/routing.js?v=15"></script>
+  <script src="js/blackspots.js?v=15"></script>
+  <script src="js/traffic.js?v=15"></script>
+  <script src="js/trip-logger.js?v=15"></script>
+  <script src="js/navigation.js?v=15"></script>
+  <script src="js/map.js?v=15"></script>
+  <script src="js/app.js?v=15"></script>
 
 </body>
 </html>

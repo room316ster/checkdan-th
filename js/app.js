@@ -11,6 +11,14 @@ class CheckDanApp {
     this.activeTab = 'checkpoints';
     this.deferredPwaPrompt = null;
     this.isAdmin = false;
+    this.currentLiveSpeed = 0;
+    this.liveGpsWatchId = null;
+    this.lastLivePos = null;
+    this.lastLivePosTime = 0;
+    this.lastSpeedAlertId = null;
+    this.lastSpeedAlertTime = 0;
+    this.lastCheckpointAlertId = null;
+    this.lastCheckpointAlertTime = 0;
   }
 
   async init() {
@@ -34,6 +42,9 @@ class CheckDanApp {
     if (window.sosManager) window.sosManager.init();
     if (window.blackspotManager) await window.blackspotManager.init(window.mapManager.map);
     if (window.trafficManager) window.trafficManager.init(window.mapManager.map);
+    if (window.highwayServiceManager) window.highwayServiceManager.init(window.mapManager.map);
+    if (window.weatherRadarManager) window.weatherRadarManager.init(window.mapManager.map);
+    if (window.voiceCommandManager) window.voiceCommandManager.init();
     if (window.navigationManager) window.navigationManager.init();
 
     // 5. Bind UI Events & Admin Security
@@ -106,9 +117,16 @@ class CheckDanApp {
     });
   }
 
-  async refreshData() {
-    this.checkpoints = await window.githubSync.loadCheckpoints();
+  async refreshData(showToastNotice = false) {
+    this.checkpoints = await window.githubSync.loadCheckpoints(true);
     this.render();
+    this.checkProximityAlerts();
+    this.updateStats();
+    this.updateLiveRadarUI();
+    if (showToastNotice) {
+      window.soundManager.playSuccess();
+      this.showToast(`🔄 อัปเดตข้อมูลด่านและเรดาร์ความเร็วสดเรียบร้อยแล้ว (${this.checkpoints.length} จุด)`, 'success');
+    }
   }
 
   bindEvents() {
@@ -207,7 +225,25 @@ class CheckDanApp {
     const locateBtn = document.getElementById('btn-locate-me');
     if (locateBtn) {
       locateBtn.addEventListener('click', () => {
-        this.requestUserLocation(true);
+        this.requestUserLocation(true, true);
+      });
+    }
+
+    // Live Refresh Button
+    const btnRefreshLive = document.getElementById('btn-refresh-live-data');
+    if (btnRefreshLive) {
+      btnRefreshLive.addEventListener('click', async () => {
+        btnRefreshLive.classList.add('rotating');
+        await this.refreshData(true);
+        setTimeout(() => btnRefreshLive.classList.remove('rotating'), 600);
+      });
+    }
+
+    // TrafficD Modal Button
+    const btnOpenTrafficD = document.getElementById('btn-open-trafficd-modal');
+    if (btnOpenTrafficD) {
+      btnOpenTrafficD.addEventListener('click', () => {
+        this.openTrafficDModal();
       });
     }
 
@@ -610,40 +646,127 @@ class CheckDanApp {
     }
   }
 
-  requestUserLocation(showNotice = false) {
+  requestUserLocation(showNotice = false, forcePan = true) {
     if ('geolocation' in navigator) {
       const locateBtn = document.getElementById('btn-locate-me');
       if (locateBtn) locateBtn.classList.add('loading');
 
+      // 1. Get current position immediately
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          if (locateBtn) locateBtn.classList.remove('loading');
+          if (locateBtn) {
+            locateBtn.classList.remove('loading');
+            locateBtn.classList.add('live-active');
+          }
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          window.mapManager.setUserLocation(lat, lng, pos.coords.accuracy);
+          const rawSpeed = pos.coords.speed;
+          this.currentLiveSpeed = (rawSpeed !== null && rawSpeed > 0.5) ? Math.round(rawSpeed * 3.6) : 0;
+          
+          window.mapManager.setUserLocation(lat, lng, pos.coords.accuracy, forcePan);
           window.soundManager.playRadarPing();
+          if (window.locationManager) {
+            window.locationManager.reverseGeocode(lat, lng, true);
+          }
           this.checkProximityAlerts();
           this.renderList();
-          this.showToast('📍 ได้รับตำแหน่ง GPS ปัจจุบันของคุณเรียบร้อยแล้ว', 'success');
+          this.updateLiveRadarUI();
+          if (showNotice) {
+            this.showToast('📍 ได้รับตำแหน่ง GPS ปัจจุบัน & เริ่มต้นเรดาร์สดเรียบร้อยแล้ว', 'success');
+          }
+
+          // 2. Start continuous live GPS watch on mobile
+          this.startLiveGPSWatch();
         },
         (err) => {
           if (locateBtn) locateBtn.classList.remove('loading');
           console.warn('Geolocation error or denied:', err);
           if (showNotice) {
-            this.showToast('⚠️ ไม่สามารถเข้าถึงตำแหน่ง GPS ได้ คุณสามารถใช้ปุ่ม "พิกัดตัวอย่าง" ด้านล่างเพื่อทดสอบระบบได้ครับ', 'warning');
+            this.showToast('⚠️ ไม่สามารถเข้าถึงตำแหน่ง GPS ได้ กรุณาเปิดการระบุตำแหน่งบนโทรศัพท์ หรือใช้พิกัดตัวอย่างครับ', 'warning');
           }
         },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 3000 }
       );
     }
   }
 
+  startLiveGPSWatch() {
+    if (this.liveGpsWatchId) return;
+
+    this.liveGpsWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const rawSpeed = pos.coords.speed;
+        let speedKmH = (rawSpeed !== null && rawSpeed > 0.5) ? Math.round(rawSpeed * 3.6) : 0;
+
+        // Fallback speed from delta distance / time if device doesn't report raw speed
+        if (speedKmH === 0 && this.lastLivePos && this.lastLivePosTime) {
+          const dt = (Date.now() - this.lastLivePosTime) / 1000;
+          if (dt >= 1.5 && dt <= 15) {
+            const distKm = window.mapManager.calculateDistance(this.lastLivePos.lat, this.lastLivePos.lng, lat, lng);
+            const calcSpeed = Math.round((distKm / dt) * 3600);
+            if (calcSpeed >= 4 && calcSpeed <= 160) {
+              speedKmH = calcSpeed;
+            }
+          }
+        }
+        this.lastLivePos = { lat, lng };
+        this.lastLivePosTime = Date.now();
+        this.currentLiveSpeed = speedKmH;
+
+        window.mapManager.setUserLocation(lat, lng, pos.coords.accuracy, false);
+        if (window.locationManager) {
+          window.locationManager.reverseGeocode(lat, lng);
+        }
+        this.checkProximityAlerts();
+        this.updateLiveRadarUI();
+      },
+      (err) => {
+        console.warn('Live GPS watch error:', err);
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 12000 }
+    );
+  }
+
+  updateLiveRadarUI() {
+    const textEl = document.getElementById('live-radar-text');
+    const speedEl = document.getElementById('live-speed-display');
+    const speed = this.currentLiveSpeed || 0;
+    
+    if (speedEl) {
+      speedEl.innerHTML = `<i class="fa-solid fa-gauge-high"></i> ${speed} กม./ชม.`;
+      if (speed > 90) {
+        speedEl.classList.add('overspeed');
+      } else {
+        speedEl.classList.remove('overspeed');
+      }
+    }
+
+    if (textEl) {
+      if (this.nearestCheckpoint && this.nearestCheckpoint.distanceKm <= this.radarDistanceThresholdKm) {
+        const distStr = this.nearestCheckpoint.distanceKm < 1 
+          ? `${Math.round(this.nearestCheckpoint.distanceKm * 1000)} ม.` 
+          : `${this.nearestCheckpoint.distanceKm.toFixed(1)} กม.`;
+        const icon = this.nearestCheckpoint.type === 'speed' ? '⚡' : '🚨';
+        textEl.innerHTML = `${icon} เรดาร์ตรวจพบ: <b>${this.nearestCheckpoint.title}</b> (${distStr})`;
+      } else {
+        textEl.innerHTML = `📡 เรดาร์ GPS สด: พร้อมตรวจจับความเร็ว & ด่านตรวจ (รัศมี ${this.radarDistanceThresholdKm} กม.)`;
+      }
+    }
+  }
+
   simulateUserLocation(lat, lng, name) {
-    window.mapManager.setUserLocation(lat, lng, 20);
+    this.currentLiveSpeed = 85;
+    window.mapManager.setUserLocation(lat, lng, 20, true);
     window.soundManager.playRadarPing();
+    if (window.locationManager) {
+      window.locationManager.reverseGeocode(lat, lng, true);
+    }
     this.checkProximityAlerts();
     this.renderList();
-    this.showToast(`🎯 พิกัดตัวอย่าง: ${name}`, 'info');
+    this.updateLiveRadarUI();
+    this.showToast(`🎯 พิกัดตัวอย่าง: ${name} (ความเร็วจำลอง 85 กม./ชม.)`, 'info');
   }
 
   // Check if any active checkpoint or speed camera is within proximity
@@ -679,16 +802,22 @@ class CheckDanApp {
       }
     });
 
-    this.nearestCheckpoint = nearest || nearestSpeed;
+    this.nearestCheckpoint = nearestSpeed && nearestSpeed.distanceKm < (nearest ? nearest.distanceKm : Infinity) 
+      ? nearestSpeed 
+      : (nearest || nearestSpeed);
 
     // 1. Dedicated Speed Camera & Radar Detection Warning
+    const currentVoiceArea = window.locationManager ? window.locationManager.getVoiceAreaText() : '';
+    const currentShortArea = window.locationManager ? window.locationManager.getShortAreaText() : '';
+    const currentAreaTag = currentShortArea ? `<div class="radar-user-coord-tag"><i class="fa-solid fa-location-crosshairs"></i> พิกัดของคุณขณะนี้: <b>${currentShortArea}</b></div>` : '';
+
     if (nearestSpeed && nearestSpeed.distanceKm <= 2.5 && speedBanner) {
       const distStr = nearestSpeed.distanceKm < 1 
         ? `${Math.round(nearestSpeed.distanceKm * 1000)} เมตร` 
         : `${nearestSpeed.distanceKm.toFixed(1)} กิโลเมตร`;
 
-      const currentDriverSpeed = window.hudManager ? Math.round(window.hudManager.currentSpeed) : 0;
-      const speedLimit = 90;
+      const currentDriverSpeed = this.currentLiveSpeed || (window.navigationManager ? Math.round(window.navigationManager.currentSpeed) : (window.hudManager ? Math.round(window.hudManager.currentSpeed) : 0));
+      const speedLimit = nearestSpeed.speedLimit || (nearestSpeed.description && nearestSpeed.description.includes('120') ? 120 : (nearestSpeed.description && nearestSpeed.description.includes('90') ? 90 : (nearestSpeed.description && nearestSpeed.description.includes('80') ? 80 : 90)));
       const isOverspeed = currentDriverSpeed > speedLimit;
 
       speedBanner.className = `speed-camera-radar-banner visible ${isOverspeed ? 'overspeed' : ''}`;
@@ -700,11 +829,12 @@ class CheckDanApp {
           <div class="speed-radar-badge-row">
             <span class="radar-pill cyan"><i class="fa-solid fa-satellite-dish"></i> ตรวจจับสัญญาณเรดาร์</span>
             <span class="radar-pill ${isOverspeed ? 'red' : 'cyan'}">
-              ${isOverspeed ? '⚠️ ขับเร็วเกินกำหนด!' : '⚡ เรดาร์กล้องจับความเร็ว'}
+              ${isOverspeed ? '⚠️ ขับเร็วเกินกำหนด!' : '⚡ เรดาร์กล้องจับความเร็ว 24 ชม.'}
             </span>
           </div>
           <div class="speed-radar-title">${nearestSpeed.title}</div>
-          <div class="speed-radar-loc">${nearestSpeed.locationName} (${nearestSpeed.direction || 'จำกัด 90 กม./ชม.'})</div>
+          <div class="speed-radar-loc">${nearestSpeed.locationName} (${nearestSpeed.direction || `จำกัด ${speedLimit} กม./ชม.`})</div>
+          ${currentAreaTag}
         </div>
         <div class="speed-radar-limit-box">
           <div class="mini-speed-limit">${speedLimit}</div>
@@ -712,11 +842,14 @@ class CheckDanApp {
         </div>
       `;
 
-      // Trigger Laser Speed Radar Detector Audio
-      window.soundManager.playSpeedRadarAlert();
-
-      // Voice warning for speed camera
-      window.voiceManager.speak(`ระวังค่ะ! อีก ${distStr} ข้างหน้ามีกล้องตรวจจับความเร็ว จำกัดความเร็ว ${speedLimit} กิโลเมตรต่อชั่วโมง กรุณาชะลอความเร็วค่ะ`);
+      // Trigger Laser Speed Radar Detector Audio & Voice with cooldown
+      const now = Date.now();
+      if (this.lastSpeedAlertId !== nearestSpeed.id || (now - this.lastSpeedAlertTime > 40000)) {
+        this.lastSpeedAlertId = nearestSpeed.id;
+        this.lastSpeedAlertTime = now;
+        window.soundManager.playSpeedRadarAlert();
+        window.voiceManager.announceSpeedCamera(nearestSpeed, nearestSpeed.distanceKm, speedLimit, currentVoiceArea);
+      }
     } else if (speedBanner) {
       speedBanner.classList.remove('visible', 'overspeed');
     }
@@ -735,6 +868,7 @@ class CheckDanApp {
             <div class="hud-tag">🚨 ตรวจพบด่านในรัศมีใกล้ตัว (${distStr})</div>
             <div class="hud-title">${nearest.title}</div>
             <div class="hud-sub">${nearest.locationName} (${nearest.direction || 'ไม่ระบุฝั่ง'})</div>
+            ${currentAreaTag}
           </div>
           <button class="hud-view-btn" onclick="window.app.flyToAndOpen('${nearest.id}')">
             <i class="fa-solid fa-crosshairs"></i> ส่องจุดด่าน
@@ -742,8 +876,13 @@ class CheckDanApp {
         </div>
       `;
 
-      window.soundManager.playWarningAlert();
-      window.voiceManager.announceCheckpointWarning(nearest, nearest.distanceKm);
+      const now = Date.now();
+      if (this.lastCheckpointAlertId !== nearest.id || (now - this.lastCheckpointAlertTime > 40000)) {
+        this.lastCheckpointAlertId = nearest.id;
+        this.lastCheckpointAlertTime = now;
+        window.soundManager.playWarningAlert();
+        window.voiceManager.announceCheckpointWarning(nearest, nearest.distanceKm, currentVoiceArea);
+      }
     } else if (alertBanner) {
       alertBanner.classList.remove('visible', 'pulse-alert');
     }
@@ -769,6 +908,7 @@ class CheckDanApp {
             </div>
             <div class="speed-radar-title">${nearestBlackspot.title}</div>
             <div class="speed-radar-loc">${nearestBlackspot.locationName} (${nearestBlackspot.warningText})</div>
+            ${currentAreaTag}
           </div>
           <div class="speed-radar-limit-box">
             <div class="mini-speed-limit">${nearestBlackspot.speedLimit}</div>
@@ -777,13 +917,24 @@ class CheckDanApp {
         `;
 
         window.soundManager.playWarningAlert();
-        window.voiceManager.announceBlackspot(nearestBlackspot, nearestBlackspot.distanceKm);
+        window.voiceManager.announceBlackspot(nearestBlackspot, nearestBlackspot.distanceKm, currentVoiceArea);
       } else {
         blackspotBanner.classList.remove('visible');
       }
     }
 
-    // 4. Log progress to TripLogger
+    // 4. Update Progressive Proximity Radar Beeping (Geiger frequency increases as distance closes)
+    if (window.soundManager) {
+      if (nearestSpeed && nearestSpeed.distanceKm <= 1.5) {
+        window.soundManager.updateProximityBeep(nearestSpeed.distanceKm, 'speed');
+      } else if (nearest && nearest.distanceKm <= 1.2) {
+        window.soundManager.updateProximityBeep(nearest.distanceKm, 'checkpoint');
+      } else {
+        window.soundManager.stopProximityBeep();
+      }
+    }
+
+    // 5. Log progress to TripLogger
     if (window.tripLogger && window.tripLogger.isRecording) {
       if (nearest && nearest.distanceKm <= 0.3) {
         window.tripLogger.logCheckpointPass(nearest);
@@ -870,10 +1021,12 @@ class CheckDanApp {
       const isCleared = cp.status === 'cleared';
       const statusPill = isCleared
         ? '<span class="card-status cleared"><i class="fa-solid fa-circle-check"></i> เคลียร์แล้ว</span>'
-        : '<span class="card-status active"><i class="fa-solid fa-circle-dot"></i> กำลังตั้งด่าน</span>';
+        : (cp.type === 'speed' 
+            ? '<span class="card-status active" style="border-color: #06b6d4; color: #38bdf8; background: rgba(6,182,212,0.15);"><i class="fa-solid fa-satellite-dish"></i> เรดาร์ 24 ชม.</span>'
+            : '<span class="card-status active"><i class="fa-solid fa-circle-dot"></i> กำลังตั้งด่าน (สด)</span>');
 
       const typeBadgeClass = isCleared ? 'cleared' : cp.type;
-      const timeAgo = this.formatRelativeTime(cp.reportedAt);
+      const timeAgo = this.formatRelativeTime(cp.reportedAt, cp.type, cp.status);
 
       return `
         <div class="checkpoint-card ${isCleared ? 'is-cleared' : ''}" id="card-${cp.id}" onclick="window.app.flyToAndOpen('${cp.id}')">
@@ -973,13 +1126,13 @@ class CheckDanApp {
     document.getElementById('detail-status-badge').className = `card-status ${isCleared ? 'cleared' : 'active'}`;
     document.getElementById('detail-status-badge').innerHTML = isCleared 
       ? '<i class="fa-solid fa-circle-check"></i> เคลียร์/ยกเลิกแล้ว' 
-      : '<i class="fa-solid fa-circle-dot"></i> กำลังตั้งด่าน (Active)';
+      : (cp.type === 'speed' ? '<i class="fa-solid fa-satellite-dish"></i> เรดาร์ตรวจจับ 24 ชม.' : '<i class="fa-solid fa-circle-dot"></i> กำลังตั้งด่าน (สดวันนี้)');
 
     document.getElementById('detail-title').textContent = cp.title;
     document.getElementById('detail-location').textContent = cp.locationName;
     document.getElementById('detail-direction').textContent = cp.direction || 'ไม่ระบุ';
     document.getElementById('detail-province').textContent = `${cp.province} ${cp.district ? `(${cp.district})` : ''}`;
-    document.getElementById('detail-time').textContent = this.formatRelativeTime(cp.reportedAt);
+    document.getElementById('detail-time').textContent = this.formatRelativeTime(cp.reportedAt, cp.type, cp.status);
     document.getElementById('detail-distance').textContent = distText;
     document.getElementById('detail-notes').textContent = cp.description || 'ไม่มีรายละเอียดเพิ่มเติม';
     document.getElementById('detail-reporter').textContent = cp.reportedBy || 'ผู้ใช้ไม่ระบุนาม';
@@ -1452,22 +1605,242 @@ class CheckDanApp {
     }, 4500);
   }
 
-  formatRelativeTime(isoString) {
-    if (!isoString) return 'เมื่อสักครู่';
+  formatRelativeTime(isoString, type = '', status = 'active') {
+    if (type === 'speed') {
+      return '📡 เรดาร์ 24 ชม.';
+    }
+    if (!isoString) return 'วันนี้ (สด)';
     try {
       const then = new Date(isoString).getTime();
       const now = Date.now();
       const diffSec = Math.floor((now - then) / 1000);
 
-      if (diffSec < 60) return 'เมื่อสักครู่';
+      if (diffSec < 0 || diffSec < 60) return 'เมื่อสักครู่';
       const diffMin = Math.floor(diffSec / 60);
       if (diffMin < 60) return `${diffMin} นาทีที่แล้ว`;
       const diffHr = Math.floor(diffMin / 60);
-      if (diffHr < 24) return `${diffHr} ชั่วโมงที่แล้ว`;
+      if (diffHr < 24) {
+        const d = new Date(isoString);
+        const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        return `วันนี้ ${timeStr} น. (${diffHr} ชม. ที่แล้ว)`;
+      }
       const diffDay = Math.floor(diffHr / 24);
+      if (status === 'active' && diffDay <= 2) {
+        return 'วันนี้ (กำลังตั้งด่าน)';
+      }
       return `${diffDay} วันที่แล้ว`;
     } catch (e) {
       return 'วันนี้';
+    }
+  }
+
+  // ==========================================================================
+  // TrafficD Lite & External Data Integration
+  // ==========================================================================
+  openTrafficDModal() {
+    this.closeAllModals();
+    const modal = document.getElementById('trafficd-modal');
+    if (modal) {
+      modal.classList.add('show');
+      modal.classList.add('active');
+    }
+  }
+
+  closeTrafficDModal() {
+    const modal = document.getElementById('trafficd-modal');
+    if (modal) {
+      modal.classList.remove('show');
+      modal.classList.remove('active');
+    }
+  }
+
+  launchTrafficDApp() {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    this.showToast('🚗 กำลังเรียกเปิดแอป TrafficD Lite...', 'info');
+
+    const appUri = 'trafficd://';
+    const fallbackWeb = 'https://trafficdmap.com';
+
+    if (isMobile) {
+      const start = Date.now();
+      window.location.href = appUri;
+      setTimeout(() => {
+        if (Date.now() - start < 1800) {
+          window.open(fallbackWeb, '_blank');
+        }
+      }, 1200);
+    } else {
+      window.open(fallbackWeb, '_blank');
+    }
+  }
+
+  importTrafficDData() {
+    const input = document.getElementById('trafficd-import-input');
+    if (!input || !input.value.trim()) {
+      this.showToast('⚠️ กรุณากรอกหรือวางข้อมูลจาก TrafficD ก่อนกดนำเข้าครับ', 'warning');
+      return;
+    }
+
+    const val = input.value.trim();
+    let importedList = [];
+
+    // 1. JSON Array or Object
+    if (val.startsWith('[') || val.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(val);
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        arr.forEach((item, idx) => {
+          if (item.lat && item.lng) {
+            const isSpeed = item.type === 'speed' || (item.title && item.title.includes('ความเร็ว')) || (item.title && item.title.includes('กล้อง'));
+            importedList.push({
+              id: item.id || `cp-trafficd-${Date.now()}-${idx}`,
+              title: item.title || `จุดรายงาน TrafficD #${idx + 1}`,
+              type: isSpeed ? 'speed' : (item.type || 'traffic'),
+              typeLabel: isSpeed ? 'กล้องจับความเร็ว' : (item.typeLabel || 'ด่านจราจร TrafficD'),
+              locationName: item.locationName || item.location || 'นำเข้าจาก TrafficD',
+              province: item.province || 'กรุงเทพมหานคร',
+              lat: parseFloat(item.lat),
+              lng: parseFloat(item.lng),
+              direction: item.direction || 'ไม่ระบุฝั่ง',
+              status: 'active',
+              speedLimit: item.speedLimit || (isSpeed ? 90 : null),
+              verifiedCount: item.verifiedCount || 10,
+              clearedCount: 0,
+              reportedAt: new Date().toISOString(),
+              description: item.description || 'ข้อมูลนำเข้าจากแอป TrafficD Lite (จราจร ด่าน รถติด)',
+              reportedBy: 'TrafficD_Crowd',
+              severity: 'medium'
+            });
+          }
+        });
+      } catch (err) {
+        console.warn('JSON parse error:', err);
+      }
+    }
+
+    // 2. Comma or Space separated coordinates (e.g. "13.7563, 100.5018 ด่านตรวจแยกอโศก")
+    if (importedList.length === 0) {
+      const match = val.match(/([0-9]+\.[0-9]+)[\s,]+([0-9]+\.[0-9]+)/);
+      if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        const isSpeed = val.includes('ความเร็ว') || val.includes('กล้อง') || val.includes('เรดาร์');
+        importedList.push({
+          id: `cp-trafficd-${Date.now()}`,
+          title: val.replace(match[0], '').trim() || (isSpeed ? 'กล้องตรวจจับความเร็ว (TrafficD)' : 'จุดตรวจด่าน (TrafficD)'),
+          type: isSpeed ? 'speed' : 'traffic',
+          typeLabel: isSpeed ? 'กล้องจับความเร็ว' : 'ด่านตรวจจราจร',
+          locationName: 'พิกัดนำเข้าด่วน TrafficD',
+          province: 'กรุงเทพมหานคร',
+          lat,
+          lng,
+          direction: 'ทั้งสองฝั่ง',
+          status: 'active',
+          speedLimit: isSpeed ? 90 : null,
+          verifiedCount: 12,
+          clearedCount: 0,
+          reportedAt: new Date().toISOString(),
+          description: val,
+          reportedBy: 'TrafficD_User',
+          severity: 'medium'
+        });
+      }
+    }
+
+    if (importedList.length > 0) {
+      importedList.forEach(cp => this.checkpoints.unshift(cp));
+      window.githubSync.saveLocalCache(this.checkpoints);
+      this.render();
+      this.closeTrafficDModal();
+      this.flyToAndOpen(importedList[0].id);
+      window.soundManager.playSuccess();
+      window.voiceManager.speak(`นำเข้าข้อมูลจาก ทราฟฟิกดี สำเร็จ ${importedList.length} จุดเรียบร้อยค่ะ`);
+      this.showToast(`✅ นำเข้าข้อมูลจุดด่านจาก TrafficD สำเร็จ ${importedList.length} จุดเรียบร้อย!`, 'success');
+      input.value = '';
+    } else {
+      this.showToast('⚠️ รูปแบบข้อมูลไม่ถูกต้อง กรุณาใส่ JSON หรือพิกัด ละติจูด, ลองจิจูด', 'warning');
+    }
+  }
+
+  loadSampleTrafficDData() {
+    const input = document.getElementById('trafficd-import-input');
+    if (!input) return;
+    const sample = [
+      {
+        "title": "ด่านตรวจวัดแอลกอฮอล์ ถ.ทองหล่อ",
+        "type": "alcohol",
+        "typeLabel": "ตรวจวัดแอลกอฮอล์",
+        "locationName": "หน้า สน.ทองหล่อ สุขุมวิท 55",
+        "province": "กรุงเทพมหานคร",
+        "lat": 13.7330,
+        "lng": 100.5830,
+        "direction": "ขาเข้า (มุ่งหน้าสุขุมวิท)"
+      },
+      {
+        "title": "กล้องตรวจจับความเร็ว ทางด่วนเฉลิมมหานคร (ด่านอาจณรงค์)",
+        "type": "speed",
+        "typeLabel": "กล้องจับความเร็ว",
+        "locationName": "บนทางด่วนช่วงโค้งอาจณรงค์",
+        "province": "กรุงเทพมหานคร",
+        "lat": 13.7120,
+        "lng": 100.5890,
+        "speedLimit": 80,
+        "direction": "จำกัด 80 กม./ชม."
+      }
+    ];
+    input.value = JSON.stringify(sample, null, 2);
+    this.showToast('📋 โหลดตัวอย่างข้อมูล TrafficD เรียบร้อยแล้ว กด "นำเข้าสู่แผนที่เรดาร์" ได้เลยครับ', 'info');
+  }
+
+  async syncTrafficDAPI() {
+    const endpointInput = document.getElementById('trafficd-api-endpoint');
+    const url = endpointInput ? endpointInput.value.trim() : '';
+    if (!url) {
+      this.showToast('⚠️ กรุณากรอก URL Endpoint API ก่อนกดซิงค์ครับ', 'warning');
+      return;
+    }
+
+    this.showToast('⏳ กำลังเชื่อมต่อซิงค์ข้อมูลกับ API...', 'info');
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        data.forEach((item, idx) => {
+          if (item.lat && item.lng) {
+            const isSpeed = item.type === 'speed' || (item.title && item.title.includes('ความเร็ว'));
+            this.checkpoints.unshift({
+              id: item.id || `cp-api-${Date.now()}-${idx}`,
+              title: item.title || 'จุดตรวจสด (API Sync)',
+              type: isSpeed ? 'speed' : (item.type || 'traffic'),
+              typeLabel: isSpeed ? 'กล้องจับความเร็ว' : (item.typeLabel || 'จุดตรวจ'),
+              locationName: item.locationName || item.location || 'API Data',
+              province: item.province || 'กรุงเทพมหานคร',
+              lat: parseFloat(item.lat),
+              lng: parseFloat(item.lng),
+              direction: item.direction || 'ไม่ระบุ',
+              status: item.status || 'active',
+              speedLimit: item.speedLimit || (isSpeed ? 90 : null),
+              verifiedCount: item.verifiedCount || 1,
+              clearedCount: 0,
+              reportedAt: new Date().toISOString(),
+              description: item.description || 'ซิงค์สดจาก API Feed',
+              reportedBy: 'API_Sync',
+              severity: 'medium'
+            });
+          }
+        });
+        window.githubSync.saveLocalCache(this.checkpoints);
+        this.render();
+        this.closeTrafficDModal();
+        window.soundManager.playSuccess();
+        this.showToast(`✅ ซิงค์ข้อมูลด่านสดผ่าน API สำเร็จ ${data.length} รายการ!`, 'success');
+      } else {
+        this.showToast('⚠️ ไม่พบข้อมูลจุดด่านในรูปแบบ Array จาก API', 'warning');
+      }
+    } catch (err) {
+      console.warn('API Sync Error:', err);
+      this.showToast(`❌ เชื่อมต่อ API ล้มเหลว: ${err.message} (ตรวจสอบ CORS หรือ URL)`, 'warning');
     }
   }
 }

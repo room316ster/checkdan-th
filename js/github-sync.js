@@ -27,10 +27,10 @@ class GitHubSyncManager {
 
   // Load checkpoints:
   // 1. Check if user configured a remote GitHub repo
-  // 2. Check localStorage for user changes
-  // 3. Check data/checkpoints.json (local file)
-  // 4. Fallback to window.INITIAL_CHECKPOINTS
-  async loadCheckpoints() {
+  // 2. Fetch fresh data/checkpoints.json with cache buster to ensure real-time up-to-date data
+  // 3. Merge with any local user-created checkpoints from localStorage
+  // 4. Fallback to localStorage cache or window.INITIAL_CHECKPOINTS
+  async loadCheckpoints(forceRemote = false) {
     const config = this.getConfig();
 
     // Try remote GitHub Raw if configured
@@ -42,8 +42,9 @@ class GitHubSyncManager {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
             console.log('Loaded from GitHub Raw:', rawUrl);
-            this.saveLocalCache(data);
-            return data;
+            const merged = this.mergeWithLocalUserReports(data);
+            this.saveLocalCache(merged);
+            return merged;
           }
         }
       } catch (err) {
@@ -51,22 +52,25 @@ class GitHubSyncManager {
       }
     }
 
-    // Check localStorage cache
+    // Always fetch fresh local data/checkpoints.json to ensure data is up to date
+    try {
+      const res = await fetch(`data/checkpoints.json?t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const merged = this.mergeWithLocalUserReports(data);
+          this.saveLocalCache(merged);
+          return merged;
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch data/checkpoints.json directly (likely offline or file://):', err);
+    }
+
+    // Fallback to localStorage cache
     const cached = this.getLocalCache();
     if (cached && Array.isArray(cached) && cached.length > 0) {
       return cached;
-    }
-
-    // Check local data/checkpoints.json
-    try {
-      const res = await fetch('data/checkpoints.json');
-      if (res.ok) {
-        const data = await res.json();
-        this.saveLocalCache(data);
-        return data;
-      }
-    } catch (err) {
-      console.warn('Could not fetch data/checkpoints.json directly (likely file:// protocol):', err);
     }
 
     // Fallback to initial mock data
@@ -76,6 +80,24 @@ class GitHubSyncManager {
     }
 
     return [];
+  }
+
+  // Merge newly fetched data with any user-reported or newly added checkpoints from localStorage
+  mergeWithLocalUserReports(freshList) {
+    const cached = this.getLocalCache();
+    if (!cached || !Array.isArray(cached)) return freshList;
+
+    const freshMap = new Map();
+    freshList.forEach(item => freshMap.set(item.id, item));
+
+    // Keep any user-reported items (e.g. id starting with 'cp-user' or not in freshList)
+    cached.forEach(c => {
+      if (!freshMap.has(c.id)) {
+        freshList.unshift(c);
+      }
+    });
+
+    return freshList;
   }
 
   getLocalCache() {

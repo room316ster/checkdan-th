@@ -175,54 +175,58 @@ class MapManager {
     });
   }
 
-  // Set user's live GPS position with radar pulse effect
-  setUserLocation(lat, lng, accuracy = 50) {
+  // Set or update user's live GPS position with radar pulse effect
+  setUserLocation(lat, lng, accuracy = 50, shouldPan = true) {
     this.userCoords = { lat, lng };
 
-    if (this.userLocationMarker) {
-      this.map.removeLayer(this.userLocationMarker);
-    }
-    if (this.radarCircle) {
-      this.map.removeLayer(this.radarCircle);
-    }
+    if (!this.userLocationMarker) {
+      const userIcon = L.divIcon({
+        className: 'user-loc-div-icon',
+        html: `
+          <div class="user-loc-marker">
+            <div class="user-loc-sonar"></div>
+            <div class="user-loc-dot"></div>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
 
-    const userIcon = L.divIcon({
-      className: 'user-loc-div-icon',
-      html: `
-        <div class="user-loc-marker">
-          <div class="user-loc-sonar"></div>
-          <div class="user-loc-dot"></div>
+      this.userLocationMarker = L.marker([lat, lng], {
+        icon: userIcon,
+        zIndexOffset: 1000
+      }).addTo(this.map);
+
+      this.userLocationMarker.bindPopup(`
+        <div class="user-popup">
+          <b><i class="fa-solid fa-street-view"></i> ตำแหน่งปัจจุบันของคุณ</b>
+          <p>พิกัด: ${lat.toFixed(5)}, ${lng.toFixed(5)}</p>
+          <span class="radar-tag">รัศมีเรดาร์ตรวจจับ: ${(this.radarRadiusMeters / 1000).toFixed(0)} กม.</span>
         </div>
-      `,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
-    });
-
-    this.userLocationMarker = L.marker([lat, lng], {
-      icon: userIcon,
-      zIndexOffset: 1000
-    }).addTo(this.map);
-
-    this.userLocationMarker.bindPopup(`
-      <div class="user-popup">
-        <b><i class="fa-solid fa-street-view"></i> ตำแหน่งปัจจุบันของคุณ</b>
-        <p>พิกัด: ${lat.toFixed(5)}, ${lng.toFixed(5)}</p>
-        <span class="radar-tag">รัศมีเรดาร์ตรวจจับ: ${(this.radarRadiusMeters / 1000).toFixed(0)} กม.</span>
-      </div>
-    `);
+      `);
+    } else {
+      this.userLocationMarker.setLatLng([lat, lng]);
+    }
 
     // Radar scanning perimeter circle
-    this.radarCircle = L.circle([lat, lng], {
-      radius: this.radarRadiusMeters,
-      color: '#00f2fe',
-      fillColor: '#00f2fe',
-      fillOpacity: 0.06,
-      weight: 1.5,
-      dashArray: '6, 8',
-      className: 'radar-perimeter-circle'
-    }).addTo(this.map);
+    if (!this.radarCircle) {
+      this.radarCircle = L.circle([lat, lng], {
+        radius: this.radarRadiusMeters,
+        color: '#00f2fe',
+        fillColor: '#00f2fe',
+        fillOpacity: 0.06,
+        weight: 1.5,
+        dashArray: '6, 8',
+        className: 'radar-perimeter-circle'
+      }).addTo(this.map);
+    } else {
+      this.radarCircle.setLatLng([lat, lng]);
+      this.radarCircle.setRadius(this.radarRadiusMeters);
+    }
 
-    this.map.setView([lat, lng], 13);
+    if (shouldPan) {
+      this.map.setView([lat, lng], Math.max(this.map.getZoom(), 13));
+    }
   }
 
   setRadarRadius(meters) {

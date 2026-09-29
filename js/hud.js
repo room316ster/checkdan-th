@@ -9,6 +9,7 @@ class HUDManager {
     this.isSimulating = false;
     this.simSpeed = 85;
     this.heading = 0;
+    this.isMirrored = false;
   }
 
   init() {
@@ -29,6 +30,14 @@ class HUDManager {
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
         this.closeHUD();
+      });
+    }
+
+    // Mirror Flip Mode for Windshield Reflection
+    const mirrorBtn = document.getElementById('btn-hud-mirror');
+    if (mirrorBtn) {
+      mirrorBtn.addEventListener('click', () => {
+        this.toggleMirrorMode();
       });
     }
 
@@ -62,6 +71,29 @@ class HUDManager {
           fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
         }
       });
+    }
+  }
+
+  toggleMirrorMode() {
+    const hudOverlay = document.getElementById('hud-driving-mode');
+    const mirrorBtn = document.getElementById('btn-hud-mirror');
+    if (!hudOverlay) return;
+
+    this.isMirrored = !this.isMirrored;
+    hudOverlay.classList.toggle('hud-mirrored', this.isMirrored);
+
+    if (mirrorBtn) {
+      mirrorBtn.classList.toggle('active', this.isMirrored);
+      mirrorBtn.innerHTML = this.isMirrored 
+        ? '<i class="fa-solid fa-arrows-split-up-and-left"></i> โหมดปกติ' 
+        : '<i class="fa-solid fa-arrows-left-right"></i> สะท้อนกระจก';
+    }
+
+    if (this.isMirrored) {
+      window.app.showToast('🪞 เปิดโหมดสะท้อนกระจกหน้ารถ: วางโทรศัพท์หงายบนคอนโซลหน้ารถ', 'info');
+      window.voiceManager.speak('เปิดโหมดสะท้อนกระจกหน้ารถ วางโทรศัพท์บนคอนโซลหน้ารถเพื่อมองภาพสะท้อนค่ะ');
+    } else {
+      window.app.showToast('📱 กลับสู่มุมมองหน้าจอปกติ', 'info');
     }
   }
 
@@ -133,6 +165,9 @@ class HUDManager {
           }
 
           window.mapManager.setUserLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+          if (window.locationManager) {
+            window.locationManager.reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+          }
           window.app.checkProximityAlerts();
           this.updateHUDDisplay();
         },
@@ -277,6 +312,12 @@ class HUDManager {
     const compassEl = document.getElementById('hud-compass-direction');
     if (compassEl) {
       compassEl.textContent = this.getCompassDirection(this.heading);
+    }
+
+    // 4. Current Area Display
+    const hudAreaEl = document.getElementById('hud-location-text');
+    if (hudAreaEl && window.locationManager) {
+      hudAreaEl.textContent = window.locationManager.getShortAreaText() || 'กำลังระบุพิกัด...';
     }
   }
 
