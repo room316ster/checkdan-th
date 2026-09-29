@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>CheckDan TH - ระบบตรวจสอบด่านจราจร เรดาร์เตือนภัยด้วยเสียง & โหมดขับขี่ HUD (77 จังหวัด)</title>
-  <meta name="description" content="เว็บแอพพลิเคชันตรวจสอบจุดตรวจด่านจราจร ด่านเป่าแอลกอฮอล์ กล้องจับความเร็ว พร้อมระบบเสียงพูดเตือนภาษาไทยอัตโนมัติ โหมดขับขี่ HUD ดิจิทัล และค้นหาเส้นทางสแกนด่าน 77 จังหวัดทั่วไทย">
-  <meta name="keywords" content="เช็คด่าน, โหมดขับขี่ HUD, เสียงเตือนด่าน, เบอร์ฉุกเฉินทางหลวง, ด่านแอลกอฮอล์, กล้องจับความเร็ว, แผนที่ด่าน 77 จังหวัด, checkdan, github pages, PWA">
+  <title>คู่หูนักเดินทาง - เรดาร์ด่านจราจร นำทางท่องเที่ยว & โหมดขับขี่ HUD (77 จังหวัด)</title>
+  <meta name="description" content="คู่หูนักเดินทาง (Travel Companion TH) แอพพลิเคชันตรวจสอบจุดตรวจด่านจราจร ด่านแอลกอฮอล์ กล้องจับความเร็ว ค้นหาแหล่งท่องเที่ยว จุดพักรถ ระบบเสียงเตือนอัตโนมัติ และโหมดขับขี่ HUD ครอบคลุม 77 จังหวัดทั่วไทย">
+  <meta name="keywords" content="คู่หูนักเดินทาง, แหล่งท่องเที่ยว 77 จังหวัด, เช็คด่าน, โหมดขับขี่ HUD, เสียงเตือนด่าน, เบอร์ฉุกเฉินทางหลวง, ด่านแอลกอฮอล์, กล้องจับความเร็ว, แผนที่ท่องเที่ยว, PWA">
   
   <!-- PWA Web App Manifest & Theme -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#00f2fe">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CheckDan TH">
+  <meta name="apple-mobile-web-app-title" content="คู่หูนักเดินทาง">
 
   <!-- Favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚨</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧭</text></svg>">
 
   <!-- Google Fonts: Prompt & Sarabun -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,7 +29,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=16">
+  <link rel="stylesheet" href="css/style.css?v=17">
 
   <!-- Critical Layout Fix Styles: Guaranteed execution against caching -->
   <style id="critical-fix-style">
@@ -92,18 +92,24 @@
        ======================================================================== -->
   <header class="app-header">
     <div class="brand-section">
-      <div class="brand-logo-icon">
-        <i class="fa-solid fa-radar"></i>
+      <div class="brand-logo-icon" style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">
+        <i class="fa-solid fa-compass"></i>
       </div>
       <div class="brand-meta">
         <h1 class="brand-title">
-          CheckDan TH <span class="live-dot" title="ระบบทำงานเรียลไทม์ 77 จังหวัด"></span>
+          คู่หูนักเดินทาง <span class="live-dot" title="ระบบทำงานเรียลไทม์ 77 จังหวัด"></span>
         </h1>
-        <span class="brand-subtitle">เรดาร์เตือนด่าน & โหมดขับขี่ HUD ทั่วประเทศ</span>
+        <span class="brand-subtitle">เรดาร์เตือนด่าน แหล่งท่องเที่ยว & นำทางอัจฉริยะ</span>
       </div>
     </div>
 
     <div class="header-actions">
+      <!-- Real Device & Install Telemetry Trigger -->
+      <button id="btn-header-install-analytics" class="header-install-counter-badge" title="ข้อมูลอุปกรณ์และการติดตั้งจริง (Admin Mode)">
+        <i class="fa-solid fa-microchip"></i>
+        <span id="header-install-count-text">ข้อมูลอุปกรณ์จริง</span>
+      </button>
+
       <!-- Driving Mode HUD Trigger -->
       <button id="btn-open-hud" class="header-btn btn-hud" title="เปิดโหมดขับขี่เต็มจอ (HUD Driving Mode)">
         <i class="fa-solid fa-gauge-high"></i>
@@ -215,6 +221,23 @@
           <span id="menu-device-voice-tag" class="menu-status-pill cyan" style="font-size: 10px;">กำลังตรวจจับ...</span>
         </div>
         <div class="mobile-menu-divider"></div>
+        <button class="mobile-menu-item" id="menu-item-install-analytics" onclick="window.installTracker.openInstallAnalyticsWithAuth();">
+          <i class="fa-solid fa-chart-pie" style="color: var(--neon-cyan);"></i>
+          <div class="menu-item-text">
+            <span class="title">ข้อมูลผู้ติดตั้งโปรแกรม (Analytics)</span>
+            <span class="sub">ดูสถิติและรายชื่อผู้ติดตั้ง (เฉพาะ Admin)</span>
+          </div>
+          <i class="fa-solid fa-chevron-right" style="font-size: 11px; color: var(--text-dim);"></i>
+        </button>
+        <button class="mobile-menu-item" id="menu-item-attractions" onclick="window.app.openAttractionsTab();">
+          <i class="fa-solid fa-umbrella-beach" style="color: #fbbf24;"></i>
+          <div class="menu-item-text">
+            <span class="title">ค้นหาแหล่งท่องเที่ยว 77 จังหวัด</span>
+            <span class="sub">ธรรมชาติ ทะเล วัด คาเฟ่ & นำทาง</span>
+          </div>
+          <i class="fa-solid fa-chevron-right" style="font-size: 11px; color: var(--text-dim);"></i>
+        </button>
+        <div class="mobile-menu-divider"></div>
         <button class="mobile-menu-item" id="menu-item-trafficd" onclick="window.app.openTrafficDModal();">
           <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i>
           <div class="menu-item-text">
@@ -250,7 +273,7 @@
         </div>
         <div class="mobile-sheet-title-row">
           <span class="mobile-sheet-title" id="mobile-sheet-title">
-            <i class="fa-solid fa-shield-halved" style="color: var(--neon-cyan);"></i> รายการจุดตรวจด่าน
+            <i class="fa-solid fa-compass" style="color: var(--neon-cyan);"></i> คู่หูนักเดินทาง
           </span>
           <button class="mobile-sheet-btn-close" id="btn-close-mobile-sheet" title="ย่อหน้าต่างลง">
             <i class="fa-solid fa-chevron-down"></i>
@@ -258,13 +281,16 @@
         </div>
       </div>
       
-      <!-- Top Navigation Tabs (รายการจุดตรวจ VS วางแผนเส้นทาง) -->
+      <!-- Top Navigation Tabs (3 แท็บ: รายการจุดตรวจ VS แหล่งท่องเที่ยว VS วางแผนเส้นทาง) -->
       <div class="sidebar-nav-tabs">
-        <button class="tab-btn active" id="tab-btn-checkpoints" data-tab="checkpoints">
-          <i class="fa-solid fa-map-pin"></i> รายการจุดตรวจด่าน
+        <button class="tab-btn active" id="tab-btn-checkpoints" data-tab="checkpoints" title="ดูรายการจุดตรวจด่านจราจร">
+          <i class="fa-solid fa-shield-halved"></i> จุดตรวจด่าน
         </button>
-        <button class="tab-btn" id="tab-btn-route" data-tab="route">
-          <i class="fa-solid fa-route"></i> วางแผนเส้นทาง & สแกนด่าน
+        <button class="tab-btn" id="tab-btn-attractions" data-tab="attractions" title="ค้นหาแหล่งท่องเที่ยว 77 จังหวัดทั่วไทย">
+          <i class="fa-solid fa-umbrella-beach"></i> ที่ท่องเที่ยว
+        </button>
+        <button class="tab-btn" id="tab-btn-route" data-tab="route" title="วางแผนเส้นทางและสแกนด่านตรวจ">
+          <i class="fa-solid fa-route"></i> สแกนทาง
         </button>
       </div>
 
@@ -350,23 +376,161 @@
 
       </div>
 
+      <!-- VIEW 1.5: Attractions Explorer & Travel Companion View -->
+      <div class="tab-view" id="view-attractions">
+        <div class="attractions-view-container">
+          
+          <!-- Province Selector for Attractions -->
+          <div class="province-filter-row">
+            <div class="province-select-wrapper">
+              <i class="fa-solid fa-map-location-dot province-icon" style="color: #fbbf24;"></i>
+              <select id="attraction-province-select" class="province-select">
+                <option value="all">🇹🇭 ที่เที่ยวทุกจังหวัดทั่วไทย (77 จังหวัด)</option>
+                <!-- Populated dynamically by provinces-data.js -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Search Input for Attractions -->
+          <div class="sidebar-search-box">
+            <div class="search-input-wrapper">
+              <i class="fa-solid fa-magnifying-glass search-icon" style="color: var(--neon-cyan);"></i>
+              <input type="text" id="attractions-search-input" class="search-input" placeholder="ค้นหาแหล่งท่องเที่ยว เช่น เขาใหญ่, เกาะล้าน, วัดพระแก้ว..." autocomplete="off">
+              <button type="button" id="btn-attraction-search-clear" class="route-clear-btn" title="ล้างข้อความ" style="display: none; position: absolute; right: 10px;">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Action: Nearby Attractions Trigger & Map Layer Toggle -->
+          <div style="display: flex; gap: 8px;">
+            <button type="button" id="btn-nearby-attractions" class="header-btn" style="flex: 1; justify-content: center; background: rgba(0, 242, 254, 0.1); border-color: rgba(0, 242, 254, 0.4); color: var(--neon-cyan); font-size: 11px; padding: 6px;">
+              <i class="fa-solid fa-crosshairs"></i> ที่เที่ยวใกล้ฉัน (Nearby)
+            </button>
+            <button type="button" id="btn-sidebar-toggle-attractions-map" class="header-btn" style="flex: 1; justify-content: center; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; font-size: 11px; padding: 6px;">
+              <i class="fa-solid fa-map-pin"></i> แสดงหมุดบนแผนที่
+            </button>
+          </div>
+
+          <!-- Category Filter Chips -->
+          <div class="filter-chips-wrapper" id="attraction-category-chips">
+            <button class="filter-chip active" data-cat="all">
+              <i class="fa-solid fa-border-all"></i> ทั้งหมด
+            </button>
+            <button class="filter-chip" data-cat="nature">
+              <i class="fa-solid fa-mountain-sun" style="color: #10b981;"></i> ภูเขา & ธรรมชาติ
+            </button>
+            <button class="filter-chip" data-cat="beach">
+              <i class="fa-solid fa-umbrella-beach" style="color: #06b6d4;"></i> ทะเล & ชายหาด
+            </button>
+            <button class="filter-chip" data-cat="temple">
+              <i class="fa-solid fa-vihara" style="color: #fbbf24;"></i> วัด & มรดกโลก
+            </button>
+            <button class="filter-chip" data-cat="landmark">
+              <i class="fa-solid fa-landmark-dome" style="color: #c4b5fd;"></i> แลนด์มาร์ก
+            </button>
+            <button class="filter-chip" data-cat="market">
+              <i class="fa-solid fa-store" style="color: #f472b6;"></i> ตลาด & สตรีทฟู้ด
+            </button>
+            <button class="filter-chip" data-cat="cafe">
+              <i class="fa-solid fa-mug-saucer" style="color: #fb923c;"></i> คาเฟ่ & จุดชิล
+            </button>
+          </div>
+
+          <!-- List Header Count -->
+          <div class="sidebar-list-header">
+            <span id="attractions-count-label">พบแหล่งท่องเที่ยว 25 แห่ง</span>
+            <span><i class="fa-solid fa-compass"></i> คู่หูนำทาง</span>
+          </div>
+
+          <!-- Attractions Cards List -->
+          <div class="attractions-list-container" id="attractions-cards-list">
+            <!-- Populated dynamically by JS -->
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state" id="attractions-empty-state" style="display: none;">
+            <i class="fa-solid fa-compass"></i>
+            <p>ไม่พบแหล่งท่องเที่ยวตามคำค้นหาหรือจังหวัดที่เลือก</p>
+          </div>
+
+        </div>
+      </div>
+
       <!-- VIEW 2: Route Planning & Checkpoint Collision Scanner View -->
       <div class="tab-view" id="view-route">
         <div class="route-view-container">
           
           <div class="route-inputs-card">
-            <div class="route-input-row">
-              <div class="route-point-marker origin" title="จุดเริ่มต้น"><i class="fa-solid fa-play"></i></div>
-              <select id="route-origin-select" class="route-select">
-                <option value="current">📍 ตำแหน่งปัจจุบันของฉัน (GPS)</option>
-              </select>
+            <!-- Origin Input Group -->
+            <div class="route-input-group">
+              <div class="route-input-row">
+                <div class="route-point-marker origin" title="จุดเริ่มต้น"><i class="fa-solid fa-play"></i></div>
+                <div class="route-autocomplete-wrap">
+                  <input type="text" id="route-origin-input" class="route-search-input" 
+                         placeholder="ค้นหาจุดเริ่มต้น (เช่น พิกัดปัจจุบัน, อนุสาวรีย์ชัยฯ)..." 
+                         value="📍 ตำแหน่งปัจจุบันของฉัน (GPS)" autocomplete="off">
+                  <button type="button" id="btn-origin-clear" class="route-clear-btn" title="ล้างข้อความ" style="display: none;">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                  <button type="button" id="btn-origin-gps" class="route-inline-btn active" title="ใช้ตำแหน่ง GPS ปัจจุบัน">
+                    <i class="fa-solid fa-crosshairs"></i>
+                  </button>
+                </div>
+              </div>
+              <!-- Origin Suggestions Dropdown -->
+              <div id="origin-suggestions" class="route-suggestions-list" style="display: none;"></div>
             </div>
 
-            <div class="route-input-row">
-              <div class="route-point-marker dest" title="จุดหมายปลายทาง"><i class="fa-solid fa-flag-checkered"></i></div>
-              <select id="route-dest-select" class="route-select">
-                <option value="" disabled selected>🏁 เลือกจุดหมายปลายทาง (จังหวัด)...</option>
-              </select>
+            <!-- Swap Origin & Destination Button in Center -->
+            <div class="route-swap-row">
+              <div class="route-swap-line"></div>
+              <button type="button" id="btn-swap-route-points" class="btn-swap-route" title="สลับต้นทางและปลายทาง">
+                <i class="fa-solid fa-arrow-down-up-across-line"></i>
+              </button>
+              <div class="route-swap-line"></div>
+            </div>
+
+            <!-- Destination Input Group -->
+            <div class="route-input-group">
+              <div class="route-input-row">
+                <div class="route-point-marker dest" title="จุดหมายปลายทาง"><i class="fa-solid fa-flag-checkered"></i></div>
+                <div class="route-autocomplete-wrap">
+                  <input type="text" id="route-dest-input" class="route-search-input" 
+                         placeholder="พิมพ์จุดหมาย (เช่น 7/11ใกล้เคียง, ปั้มน้ำมัน, สยามพารากอน)..." 
+                         autocomplete="off">
+                  <button type="button" id="btn-dest-clear" class="route-clear-btn" title="ล้างข้อความ" style="display: none;">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                  <button type="button" id="btn-dest-voice" class="route-inline-btn" title="ค้นหาด้วยเสียงพูด">
+                    <i class="fa-solid fa-microphone"></i>
+                  </button>
+                </div>
+              </div>
+              <!-- Destination Suggestions Dropdown -->
+              <div id="dest-suggestions" class="route-suggestions-list" style="display: none;"></div>
+            </div>
+
+            <!-- Quick Filter Categories / Chips -->
+            <div class="route-quick-chips">
+              <button type="button" class="quick-place-chip" data-category="7eleven" title="ค้นหา 7-Eleven ใกล้เคียง">
+                <i class="fa-solid fa-store" style="color: #10b981;"></i> 7/11 ใกล้เคียง
+              </button>
+              <button type="button" class="quick-place-chip" data-category="gas" title="ค้นหาปั๊มน้ำมันใกล้เคียง (ปตท., บางจาก ฯลฯ)">
+                <i class="fa-solid fa-gas-pump" style="color: #f59e0b;"></i> ปั๊มน้ำมันใกล้เคียง
+              </button>
+              <button type="button" class="quick-place-chip" data-category="attraction" title="สถานที่ท่องเที่ยวยอดนิยม">
+                <i class="fa-solid fa-umbrella-beach" style="color: #06b6d4;"></i> สถานที่ท่องเที่ยว
+              </button>
+              <button type="button" class="quick-place-chip" data-category="cafe" title="ร้านกาแฟ & Cafe Amazon">
+                <i class="fa-solid fa-mug-saucer" style="color: #ec4899;"></i> คาเฟ่/อเมซอน
+              </button>
+              <button type="button" class="quick-place-chip" data-category="ev" title="จุดชาร์จรถยนต์ไฟฟ้า EV">
+                <i class="fa-solid fa-bolt" style="color: #3b82f6;"></i> ชาร์จ EV
+              </button>
+              <button type="button" class="quick-place-chip" data-category="map_pick" title="จิ้มเลือกจุดหมายบนแผนที่">
+                <i class="fa-solid fa-map-pin" style="color: #ef4444;"></i> เลือกจากแผนที่
+              </button>
             </div>
 
             <button id="btn-calculate-route" class="btn-scan-route">
@@ -655,6 +819,9 @@
           <button id="btn-toggle-services" class="layer-toggle-btn active" title="เปิด/ปิด จุดพักรถ ปั๊มน้ำมัน และจุดชาร์จ EV ทางหลวง">
             <i class="fa-solid fa-charging-station" style="color: #10b981;"></i> <span>จุดพัก/EV</span>
           </button>
+          <button id="btn-toggle-attractions" class="layer-toggle-btn" title="เปิด/ปิด แหล่งท่องเที่ยวยอดนิยม 77 จังหวัดทั่วไทย">
+            <i class="fa-solid fa-umbrella-beach" style="color: #fbbf24;"></i> <span>ที่เที่ยว</span>
+          </button>
           <button id="btn-toggle-weather" class="layer-toggle-btn" title="เปิด/ปิด เรดาร์ฝนสด Doppler & จุดเสี่ยงน้ำท่วมขังทางหลวง">
             <i class="fa-solid fa-cloud-showers-heavy" style="color: #38bdf8;"></i> <span>เรดาร์ฝน</span>
           </button>
@@ -716,26 +883,29 @@
   <div class="hud-driving-mode" id="hud-driving-mode">
     <div class="hud-top-bar">
       <div class="hud-title-wrap">
-        <div class="brand-logo-icon" style="width: 34px; height: 34px; font-size: 16px;">
+        <button id="btn-hud-back" class="hud-back-btn" title="กลับสู่แผนที่ (ปิด HUD)">
+          <i class="fa-solid fa-chevron-left"></i> <span class="hud-back-text">กลับ</span>
+        </button>
+        <div class="brand-logo-icon" style="width: 32px; height: 32px; font-size: 15px;">
           <i class="fa-solid fa-gauge-high"></i>
         </div>
-        <h2>DRIVE HUD MODE</h2>
+        <h2 class="hud-title-text">DRIVE HUD</h2>
       </div>
 
       <div class="hud-actions">
         <!-- Voice Command Button in HUD -->
         <button id="btn-hud-voice-cmd" class="header-btn" style="border-color: var(--neon-cyan); color: var(--neon-cyan);" title="สั่งงานด้วยเสียงภาษาไทย">
-          <i class="fa-solid fa-microphone"></i> สั่งด้วยเสียง
+          <i class="fa-solid fa-microphone"></i> <span class="hud-btn-label">สั่งเสียง</span>
         </button>
 
         <!-- Mirror Mode Toggle Button -->
         <button id="btn-hud-mirror" class="header-btn" style="border-color: #38bdf8; color: #38bdf8;" title="โหมดสะท้อนกระจกหน้ารถสำหรับขับขี่กลางคืน">
-          <i class="fa-solid fa-arrows-left-right"></i> สะท้อนกระจก
+          <i class="fa-solid fa-arrows-left-right"></i> <span class="hud-btn-label">สะท้อน</span>
         </button>
 
         <!-- Simulator Toggle Button -->
-        <button id="btn-toggle-hud-sim" class="header-btn" style="border-color: var(--neon-amber); color: var(--neon-amber);">
-          <i class="fa-solid fa-car-side"></i> จำลองขับรถ
+        <button id="btn-toggle-hud-sim" class="header-btn" style="border-color: var(--neon-amber); color: var(--neon-amber);" title="จำลองขับรถ">
+          <i class="fa-solid fa-car-side"></i> <span class="hud-btn-label">จำลอง</span>
         </button>
 
         <!-- Fullscreen Button -->
@@ -744,8 +914,8 @@
         </button>
 
         <!-- Close HUD Button -->
-        <button id="btn-close-hud" class="btn-primary-action" style="padding: 7px 14px; font-size: 12px;">
-          <i class="fa-solid fa-xmark"></i> ออกจากโหมด HUD
+        <button id="btn-close-hud" class="btn-primary-action hud-exit-btn" title="ออกจากโหมด HUD">
+          <i class="fa-solid fa-xmark"></i> <span class="hud-close-label">ปิด HUD</span>
         </button>
       </div>
     </div>
@@ -1172,6 +1342,11 @@
         <div style="display: flex; flex-direction: column; gap: 8px;">
           <h4 style="font-size: 13px; color: var(--text-muted);">เครื่องมือจัดการข้อมูลผู้ดูแลระบบ:</h4>
           
+          <!-- View Installation Analytics & Records -->
+          <button type="button" class="header-btn" id="btn-admin-view-installs" style="width: 100%; justify-content: center; background: rgba(0, 242, 254, 0.15); border-color: var(--neon-cyan); color: #ffffff; font-weight: 700;" onclick="window.installTracker.openInstallAnalyticsWithAuth();">
+            <i class="fa-solid fa-chart-pie" style="color: var(--neon-cyan);"></i> ข้อมูลผู้ติดตั้งโปรแกรม (Install Analytics & User Base)
+          </button>
+
           <!-- Download checkpoints.json -->
           <button type="button" class="header-btn" id="btn-export-json" style="width: 100%; justify-content: center;">
             <i class="fa-solid fa-download"></i> ดาวน์โหลดไฟล์ checkpoints.json ล่าสุด
@@ -1359,18 +1534,19 @@
       </div>
       <div class="modal-footer">
         <button class="header-btn modal-close">ปิดหน้าต่าง</button>
+        
       </div>
     </div>
   </div>
 
   <!-- PWA Install Smart Prompt Banner -->
   <div class="pwa-install-banner" id="pwa-install-banner">
-    <i class="fa-solid fa-mobile-screen-button" style="color: var(--neon-cyan); font-size: 20px;"></i>
+    <i class="fa-solid fa-compass" style="color: var(--neon-cyan); font-size: 22px;"></i>
     <div>
-      <div style="font-size: 13px; font-weight: 700;">ติดตั้ง CheckDan ลงมือถือ</div>
-      <div style="font-size: 11px; color: var(--text-muted);">เปิดใช้งานได้รวดเร็วเหมือนแอปจริง</div>
+      <div style="font-size: 13px; font-weight: 700;">ติดตั้ง "คู่หูนักเดินทาง" ลงมือถือ</div>
+      <div style="font-size: 11px; color: var(--text-muted);">เปิดใช้งานได้รวดเร็ว นำทาง & เรดาร์เตือนภัยตลอดเส้นทาง</div>
     </div>
-    <button class="pwa-btn-install" id="btn-pwa-install">ติดตั้ง</button>
+    <button class="pwa-btn-install" id="btn-pwa-install">ติดตั้งแอป</button>
     <button class="pwa-btn-close" id="btn-pwa-close">&times;</button>
   </div>
 
@@ -1389,6 +1565,10 @@
       </div>
       <span>จุดตรวจ</span>
     </button>
+    <button class="mobile-nav-btn" data-tab="attractions" id="mob-nav-attractions" title="ค้นหาแหล่งท่องเที่ยว 77 จังหวัด">
+      <i class="fa-solid fa-umbrella-beach"></i>
+      <span>ที่เที่ยว</span>
+    </button>
     <button class="mobile-nav-btn" data-tab="route" id="mob-nav-route" title="วางแผนเส้นทางและสแกนด่าน">
       <i class="fa-solid fa-route"></i>
       <span>สแกนทาง</span>
@@ -1398,10 +1578,6 @@
         <i class="fa-solid fa-gauge-high"></i>
       </div>
       <span>ขับขี่ HUD</span>
-    </button>
-    <button class="mobile-nav-btn btn-open-sos" data-tab="sos" id="mob-nav-sos" title="เบอร์โทรฉุกเฉิน 24 ชม.">
-      <i class="fa-solid fa-phone-volume"></i>
-      <span>ฉุกเฉิน SOS</span>
     </button>
   </nav>
 
@@ -1415,26 +1591,29 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Application Logic & Extension Modules -->
-  <script src="js/provinces-data.js?v=15"></script>
-  <script src="js/mock-data.js?v=15"></script>
-  <script src="js/audio.js?v=15"></script>
-  <script src="js/device.js?v=15"></script>
-  <script src="js/voice.js?v=15"></script>
-  <script src="js/voice-command.js?v=15"></script>
-  <script src="js/services.js?v=15"></script>
-  <script src="js/weather-radar.js?v=15"></script>
-  <script src="js/location.js?v=15"></script>
-  <script src="js/hud.js?v=15"></script>
-  <script src="js/sos.js?v=15"></script>
-  <script src="js/social.js?v=15"></script>
-  <script src="js/github-sync.js?v=15"></script>
-  <script src="js/routing.js?v=15"></script>
-  <script src="js/blackspots.js?v=15"></script>
-  <script src="js/traffic.js?v=15"></script>
-  <script src="js/trip-logger.js?v=15"></script>
-  <script src="js/navigation.js?v=15"></script>
-  <script src="js/map.js?v=15"></script>
-  <script src="js/app.js?v=15"></script>
+  <script src="js/provinces-data.js?v=18"></script>
+  <script src="js/mock-data.js?v=18"></script>
+  <script src="js/audio.js?v=18"></script>
+  <script src="js/device.js?v=18"></script>
+  <script src="js/voice.js?v=18"></script>
+  <script src="js/voice-command.js?v=18"></script>
+  <script src="js/services.js?v=18"></script>
+  <script src="js/attractions.js?v=18"></script>
+  <script src="js/install-tracker.js?v=18"></script>
+  <script src="js/weather-radar.js?v=18"></script>
+  <script src="js/location.js?v=18"></script>
+  <script src="js/hud.js?v=18"></script>
+  <script src="js/sos.js?v=18"></script>
+  <script src="js/social.js?v=18"></script>
+  <script src="js/github-sync.js?v=18"></script>
+  <script src="js/place-search.js?v=18"></script>
+  <script src="js/routing.js?v=18"></script>
+  <script src="js/blackspots.js?v=18"></script>
+  <script src="js/traffic.js?v=18"></script>
+  <script src="js/trip-logger.js?v=18"></script>
+  <script src="js/navigation.js?v=18"></script>
+  <script src="js/map.js?v=18"></script>
+  <script src="js/app.js?v=18"></script>
 
 </body>
 </html>

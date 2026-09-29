@@ -29,9 +29,31 @@ class HUDManager {
     const closeBtn = document.getElementById('btn-close-hud');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
-        this.closeHUD();
+        this.closeHUD(true);
       });
     }
+
+    // Top-left Back button for Mobile HUD
+    const backBtn = document.getElementById('btn-hud-back');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        this.closeHUD(true);
+      });
+    }
+
+    // Keyboard Escape to exit HUD
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isActive) {
+        this.closeHUD(true);
+      }
+    });
+
+    // Mobile / Browser Hardware Back Button (PopState)
+    window.addEventListener('popstate', (e) => {
+      if (this.isActive) {
+        this.closeHUD(true, false);
+      }
+    });
 
     // Mirror Flip Mode for Windshield Reflection
     const mirrorBtn = document.getElementById('btn-hud-mirror');
@@ -85,8 +107,8 @@ class HUDManager {
     if (mirrorBtn) {
       mirrorBtn.classList.toggle('active', this.isMirrored);
       mirrorBtn.innerHTML = this.isMirrored 
-        ? '<i class="fa-solid fa-arrows-split-up-and-left"></i> โหมดปกติ' 
-        : '<i class="fa-solid fa-arrows-left-right"></i> สะท้อนกระจก';
+        ? '<i class="fa-solid fa-arrows-split-up-and-left"></i> <span class="hud-btn-label">ปกติ</span>' 
+        : '<i class="fa-solid fa-arrows-left-right"></i> <span class="hud-btn-label">สะท้อน</span>';
     }
 
     if (this.isMirrored) {
@@ -105,6 +127,21 @@ class HUDManager {
     hudOverlay.classList.add('active');
     document.body.classList.add('in-hud-mode');
 
+    // Update bottom nav tabs so 'hud' is active
+    if (window.deviceManager) {
+      window.deviceManager.activeMobileTab = 'hud';
+      document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === 'hud');
+      });
+    }
+
+    // Push state to browser history for Android / mobile back button handling
+    try {
+      if (!window.history.state || !window.history.state.hudActive) {
+        window.history.pushState({ hudActive: true }, '');
+      }
+    } catch (e) {}
+
     // Start GPS high-precision watch
     this.startGPSWatch();
 
@@ -120,7 +157,7 @@ class HUDManager {
     this.updateHUDDisplay();
   }
 
-  closeHUD() {
+  closeHUD(switchTab = true, handleHistory = true) {
     const hudOverlay = document.getElementById('hud-driving-mode');
     if (!hudOverlay) return;
 
@@ -144,6 +181,19 @@ class HUDManager {
 
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
+    }
+
+    // Pop history if state was pushed
+    if (handleHistory && window.history.state && window.history.state.hudActive) {
+      try {
+        window.history.back();
+      } catch (e) {}
+    }
+
+    // Restore mobile bottom navigation state if on mobile
+    if (switchTab && window.deviceManager && window.deviceManager.isMobileView) {
+      const targetTab = window.deviceManager.isSheetOpen ? 'checkpoints' : 'map';
+      window.deviceManager.switchMobileTab(targetTab);
     }
   }
 
@@ -193,7 +243,7 @@ class HUDManager {
     const simBtn = document.getElementById('btn-toggle-hud-sim');
     if (simBtn) {
       simBtn.classList.add('active');
-      simBtn.innerHTML = '<i class="fa-solid fa-stop"></i> หยุดจำลองการขับ';
+      simBtn.innerHTML = '<i class="fa-solid fa-stop"></i> <span class="hud-btn-label">หยุดจำลอง</span>';
     }
 
     // Start simulation path heading towards Ratchada Checkpoint (cp-101)
@@ -236,7 +286,7 @@ class HUDManager {
     const simBtn = document.getElementById('btn-toggle-hud-sim');
     if (simBtn) {
       simBtn.classList.remove('active');
-      simBtn.innerHTML = '<i class="fa-solid fa-car-side"></i> จำลองขับรถ';
+      simBtn.innerHTML = '<i class="fa-solid fa-car-side"></i> <span class="hud-btn-label">จำลอง</span>';
     }
     this.currentSpeed = 0;
     this.updateHUDDisplay();

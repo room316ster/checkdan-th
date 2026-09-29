@@ -1,5 +1,5 @@
-// CheckDan TH Service Worker for PWA Offline Caching
-const CACHE_NAME = 'checkdan-cache-v16';
+// คู่หูนักเดินทาง (Travel Companion) Service Worker for PWA Offline Caching
+const CACHE_NAME = 'khuhunakderntang-cache-v18';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -12,12 +12,15 @@ const ASSETS_TO_CACHE = [
   './js/voice.js',
   './js/voice-command.js',
   './js/services.js',
+  './js/attractions.js',
+  './js/install-tracker.js',
   './js/weather-radar.js',
   './js/location.js',
   './js/hud.js',
   './js/sos.js',
   './js/social.js',
   './js/github-sync.js',
+  './js/place-search.js',
   './js/routing.js',
   './js/blackspots.js',
   './js/traffic.js',
@@ -32,7 +35,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching offline assets...');
+      console.log('[SW] Pre-caching offline assets for คู่หูนักเดินทาง...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => console.warn('[SW] Pre-cache warning:', err));
     })
   );
@@ -89,4 +92,3 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
-

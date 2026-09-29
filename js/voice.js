@@ -457,7 +457,7 @@ class VoiceManager {
   // Test voice output
   testVoice() {
     const info = this.getDeviceVoiceInfo();
-    const prefix = info.isSiri ? 'ระบบเสียง Siri ภาษาไทย สำหรับ Apple iOS พร้อมทำงานแล้วค่ะ' : 'ยินดีต้อนรับสู่ระบบเช็คด่านไทย ระบบเสียงเตือนอัตโนมัติพร้อมทำงานแล้วค่ะ';
+    const prefix = info.isSiri ? 'ระบบเสียง Siri ภาษาไทย สำหรับ Apple iOS พร้อมทำงานแล้วค่ะ คู่หูนักเดินทางพร้อมดูแลการขับขี่ค่ะ' : 'ยินดีต้อนรับสู่คู่หูนักเดินทาง ระบบเรดาร์เตือนภัยและนำทางท่องเที่ยวพร้อมทำงานแล้วค่ะ';
     this.speak(prefix, true);
   }
 }

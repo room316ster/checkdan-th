@@ -197,16 +197,52 @@ class VoiceCommandManager {
       return;
     }
 
-    // 8. Navigation
-    if (text.includes('นำทาง') || text.includes('ไปที่') || text.includes('เริ่มเดินทาง')) {
-      if (window.navigationManager) {
-        window.voiceManager.speak('กรุณาเลือกจุดหมายปลายทางในแผนที่เพื่อเริ่มนำทางค่ะ');
+    // 8. Tourist Attractions & Travel Destinations
+    if (text.includes('เที่ยว') || text.includes('สถานที่ท่องเที่ยว') || text.includes('แหล่งท่องเที่ยว') || text.includes('ที่เที่ยว')) {
+      if (window.app && typeof window.app.openAttractionsTab === 'function') {
+        window.app.openAttractionsTab();
+        window.voiceManager.speak('เปิดระบบค้นหาแหล่งท่องเที่ยว 77 จังหวัดทั่วไทยให้แล้วค่ะ มีทั้งธรรมชาติ ทะเล วัด และแลนด์มาร์กค่ะ');
+      } else if (window.attractionsManager) {
+        window.attractionsManager.toggleLayer(true);
+        window.voiceManager.speak('แสดงจุดท่องเที่ยวสำคัญบนแผนที่แล้วค่ะ');
       }
       return;
     }
 
+    // 9. Navigation & Route Scan
+    if (text.includes('นำทาง') || text.includes('สแกนทาง') || text.includes('ไปที่') || text.includes('ไป') || text.includes('เริ่มเดินทาง') || text.includes('วางแผน')) {
+      let destQuery = '';
+      const patterns = [
+        /สแกนทาง(?:ไป)?\s*(.+)/,
+        /นำทาง(?:ไป)?\s*(.+)/,
+        /ไปที่\s*(.+)/,
+        /ไป\s*(.+)/,
+        /ค้นหาเส้นทาง(?:ไป)?\s*(.+)/
+      ];
+      for (const p of patterns) {
+        const match = text.match(p);
+        if (match && match[1]) {
+          destQuery = match[1].trim();
+          break;
+        }
+      }
+
+      if (window.app && typeof window.app.openRoutePlanner === 'function') {
+        window.app.openRoutePlanner(destQuery);
+        if (destQuery) {
+          window.voiceManager.speak(`เปิดเมนูสแกนทาง และค้นหา "${destQuery}" ให้แล้วค่ะ`);
+        } else {
+          window.voiceManager.speak('เปิดเมนูสแกนทางแล้วค่ะ ท่านสามารถพิมพ์ค้นหาจุดหมายปลายทางได้เลยค่ะ');
+        }
+        return;
+      } else if (window.navigationManager) {
+        window.voiceManager.speak('กรุณาเลือกจุดหมายปลายทางในแผนที่เพื่อเริ่มนำทางค่ะ');
+        return;
+      }
+    }
+
     // Unrecognized command
-    window.voiceManager.speak(`รับคำสั่ง "${text}" ยังไม่พบคำสั่งที่ตรงกันค่ะ สามารถสั่ง "เช็คด่าน", "พิกัดฉัน" หรือ "เปิด HUD" ได้ค่ะ`);
+    window.voiceManager.speak(`รับคำสั่ง "${text}" ยังไม่พบคำสั่งที่ตรงกันค่ะ สามารถสั่ง "เช็คด่าน", "ค้นหาแหล่งท่องเที่ยว", "พิกัดฉัน" หรือ "เปิด HUD" ได้ค่ะ`);
   }
 }
 

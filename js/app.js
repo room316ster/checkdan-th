@@ -19,6 +19,12 @@ class CheckDanApp {
     this.lastSpeedAlertTime = 0;
     this.lastCheckpointAlertId = null;
     this.lastCheckpointAlertTime = 0;
+    this.selectedOriginCoords = null;
+    this.selectedDestCoords = null;
+    this.isPickingMapLocation = false;
+    this.mapPickTarget = 'dest';
+    this.destPreviewMarker = null;
+    this.placeSearchDebounce = null;
   }
 
   async init() {
@@ -33,8 +39,10 @@ class CheckDanApp {
     // 2. Populate 77 Provinces in Dropdowns
     this.populateProvinceDropdowns();
 
-    // 3. Load Checkpoint Data (GitHub / LocalStorage / Fallback)
-    await this.refreshData();
+    // 3. Bind UI Events, Place Search & Admin Security immediately
+    this.bindEvents();
+    this.initAdminSecurity();
+    this.initPlaceSearch();
 
     // 4. Initialize Extension Modules
     if (window.deviceManager) window.deviceManager.init();
@@ -44,12 +52,16 @@ class CheckDanApp {
     if (window.trafficManager) window.trafficManager.init(window.mapManager.map);
     if (window.highwayServiceManager) window.highwayServiceManager.init(window.mapManager.map);
     if (window.weatherRadarManager) window.weatherRadarManager.init(window.mapManager.map);
+    if (window.attractionsManager) window.attractionsManager.init(window.mapManager);
     if (window.voiceCommandManager) window.voiceCommandManager.init();
     if (window.navigationManager) window.navigationManager.init();
 
-    // 5. Bind UI Events & Admin Security
-    this.bindEvents();
-    this.initAdminSecurity();
+    // Initialize Attractions & Install Analytics
+    this.initAttractionsTab();
+    this.initInstallTracker();
+
+    // 5. Load Checkpoint Data (GitHub / LocalStorage / Fallback)
+    await this.refreshData();
 
     // 6. Register PWA Service Worker & Install Prompt
     this.initPWA();
@@ -63,6 +75,7 @@ class CheckDanApp {
 
   populateProvinceDropdowns() {
     const filterSelect = document.getElementById('province-filter-select');
+    const attractionSelect = document.getElementById('attraction-province-select');
     const originSelect = document.getElementById('route-origin-select');
     const destSelect = document.getElementById('route-dest-select');
     const reportSelect = document.getElementById('report-province-select');
@@ -99,6 +112,18 @@ class CheckDanApp {
         filterSelect.appendChild(grp);
       }
 
+      if (attractionSelect) {
+        const grp = document.createElement('optgroup');
+        grp.label = `--- ${regionName} ---`;
+        provsInRegion.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.name;
+          opt.textContent = p.name;
+          grp.appendChild(opt);
+        });
+        attractionSelect.appendChild(grp);
+      }
+
       if (originSelect) originSelect.appendChild(createOptGroup(regionName));
       if (destSelect) destSelect.appendChild(createOptGroup(regionName));
       
@@ -130,29 +155,31 @@ class CheckDanApp {
   }
 
   bindEvents() {
-    // Tab Switching (Checkpoints vs Route)
+    // Tab Switching (Checkpoints vs Attractions vs Route)
     const tabCheckpoints = document.getElementById('tab-btn-checkpoints');
+    const tabAttractions = document.getElementById('tab-btn-attractions');
     const tabRoute = document.getElementById('tab-btn-route');
     const viewCheckpoints = document.getElementById('view-checkpoints');
+    const viewAttractions = document.getElementById('view-attractions');
     const viewRoute = document.getElementById('view-route');
 
-    if (tabCheckpoints && tabRoute) {
-      tabCheckpoints.addEventListener('click', () => {
-        tabCheckpoints.classList.add('active');
-        tabRoute.classList.remove('active');
-        viewCheckpoints.classList.add('active');
-        viewRoute.classList.remove('active');
-        this.activeTab = 'checkpoints';
+    const switchTab = (target) => {
+      [tabCheckpoints, tabAttractions, tabRoute].forEach(t => {
+        if (t) t.classList.toggle('active', t.dataset.tab === target);
       });
+      if (viewCheckpoints) viewCheckpoints.classList.toggle('active', target === 'checkpoints');
+      if (viewAttractions) viewAttractions.classList.toggle('active', target === 'attractions');
+      if (viewRoute) viewRoute.classList.toggle('active', target === 'route');
+      this.activeTab = target;
 
-      tabRoute.addEventListener('click', () => {
-        tabRoute.classList.add('active');
-        tabCheckpoints.classList.remove('active');
-        viewRoute.classList.add('active');
-        viewCheckpoints.classList.remove('active');
-        this.activeTab = 'route';
-      });
-    }
+      if (target === 'attractions') {
+        this.renderAttractionsList();
+      }
+    };
+
+    if (tabCheckpoints) tabCheckpoints.addEventListener('click', () => switchTab('checkpoints'));
+    if (tabAttractions) tabAttractions.addEventListener('click', () => switchTab('attractions'));
+    if (tabRoute) tabRoute.addEventListener('click', () => switchTab('route'));
 
     // Voice Alert Toggle Button
     const voiceToggle = document.getElementById('btn-voice-toggle');
@@ -283,11 +310,27 @@ class CheckDanApp {
         const originId = btn.dataset.origin;
         const destId = btn.dataset.dest;
 
-        const originSelect = document.getElementById('route-origin-select');
-        const destSelect = document.getElementById('route-dest-select');
+        const origProv = window.THAILAND_PROVINCES?.find(p => p.id === originId) || { name: 'กรุงเทพมหานคร', lat: 13.7563, lng: 100.5018 };
+        const destProv = window.THAILAND_PROVINCES?.find(p => p.id === destId);
 
-        if (originSelect) originSelect.value = originId;
-        if (destSelect) destSelect.value = destId;
+        const originInput = document.getElementById('route-origin-input');
+        const destInput = document.getElementById('route-dest-input');
+
+        if (originInput && origProv) {
+          originInput.value = `จ.${origProv.name}`;
+          this.selectedOriginCoords = { lat: origProv.lat, lng: origProv.lng, name: `จ.${origProv.name}` };
+          const btnClear = document.getElementById('btn-origin-clear');
+          if (btnClear) btnClear.style.display = 'flex';
+          const btnGps = document.getElementById('btn-origin-gps');
+          if (btnGps) btnGps.classList.remove('active');
+        }
+        if (destInput && destProv) {
+          destInput.value = `จ.${destProv.name}`;
+          this.selectedDestCoords = { lat: destProv.lat, lng: destProv.lng, name: `จ.${destProv.name}` };
+          const btnClear = document.getElementById('btn-dest-clear');
+          if (btnClear) btnClear.style.display = 'flex';
+          this.previewDestinationMarker(destProv.lat, destProv.lng, `จ.${destProv.name}`);
+        }
 
         this.handleCalculateRoute();
       });
@@ -503,62 +546,614 @@ class CheckDanApp {
     }
   }
 
-  // Handle Route Calculation & Checkpoint Scanning
-  async handleCalculateRoute() {
-    const originSelect = document.getElementById('route-origin-select');
-    const destSelect = document.getElementById('route-dest-select');
-    const btnCalc = document.getElementById('btn-calculate-route');
+  // Open Route Planning tab & focus/search destination
+  openRoutePlanner(destinationText = '') {
+    // Switch desktop view tab
+    const tabRoute = document.getElementById('tab-btn-route');
+    const tabCheckpoints = document.getElementById('tab-btn-checkpoints');
+    const tabAttractions = document.getElementById('tab-btn-attractions');
+    const viewCheckpoints = document.getElementById('view-checkpoints');
+    const viewAttractions = document.getElementById('view-attractions');
+    const viewRoute = document.getElementById('view-route');
+    if (tabRoute && viewRoute) {
+      tabRoute.classList.add('active');
+      if (tabCheckpoints) tabCheckpoints.classList.remove('active');
+      if (tabAttractions) tabAttractions.classList.remove('active');
+      viewRoute.classList.add('active');
+      if (viewCheckpoints) viewCheckpoints.classList.remove('active');
+      if (viewAttractions) viewAttractions.classList.remove('active');
+      this.activeTab = 'route';
+    }
 
-    const originVal = originSelect ? originSelect.value : 'current';
-    const destVal = destSelect ? destSelect.value : '';
+    // Switch mobile bottom navigation / sheet if active
+    if (window.deviceManager && typeof window.deviceManager.openMobileSheet === 'function') {
+      window.deviceManager.openMobileSheet('route');
+    }
 
-    if (!destVal) {
-      this.showToast('⚠️ กรุณาเลือกจุดหมายปลายทาง', 'warning');
+    if (destinationText) {
+      const destInput = document.getElementById('route-dest-input');
+      if (destInput) {
+        destInput.value = destinationText;
+        const btnClear = document.getElementById('btn-dest-clear');
+        if (btnClear) btnClear.style.display = 'flex';
+        this.debouncePlaceSearch(destinationText, 'dest');
+      }
+    }
+  }
+
+  // Open Attractions Explorer tab
+  openAttractionsTab(provinceId = 'all', query = '') {
+    const tabRoute = document.getElementById('tab-btn-route');
+    const tabCheckpoints = document.getElementById('tab-btn-checkpoints');
+    const tabAttractions = document.getElementById('tab-btn-attractions');
+    const viewCheckpoints = document.getElementById('view-checkpoints');
+    const viewAttractions = document.getElementById('view-attractions');
+    const viewRoute = document.getElementById('view-route');
+
+    if (tabAttractions && viewAttractions) {
+      tabAttractions.classList.add('active');
+      if (tabCheckpoints) tabCheckpoints.classList.remove('active');
+      if (tabRoute) tabRoute.classList.remove('active');
+      viewAttractions.classList.add('active');
+      if (viewCheckpoints) viewCheckpoints.classList.remove('active');
+      if (viewRoute) viewRoute.classList.remove('active');
+      this.activeTab = 'attractions';
+    }
+
+    if (window.deviceManager && typeof window.deviceManager.openMobileSheet === 'function') {
+      window.deviceManager.openMobileSheet('attractions');
+    }
+
+    if (provinceId && provinceId !== 'all') {
+      const provSelect = document.getElementById('attraction-province-select');
+      if (provSelect) provSelect.value = provinceId;
+    }
+
+    if (query) {
+      const searchInput = document.getElementById('attractions-search-input');
+      if (searchInput) searchInput.value = query;
+    }
+
+    this.renderAttractionsList();
+  }
+
+  // Initialize Interactive Place Search & Nearby Intelligence
+  initPlaceSearch() {
+    const originInput = document.getElementById('route-origin-input');
+    const destInput = document.getElementById('route-dest-input');
+    const originSugList = document.getElementById('origin-suggestions');
+    const destSugList = document.getElementById('dest-suggestions');
+    const btnOriginGps = document.getElementById('btn-origin-gps');
+    const btnOriginClear = document.getElementById('btn-origin-clear');
+    const btnDestClear = document.getElementById('btn-dest-clear');
+    const btnDestVoice = document.getElementById('btn-dest-voice');
+    const btnSwap = document.getElementById('btn-swap-route-points');
+    const quickChips = document.querySelectorAll('.quick-place-chip');
+
+    // Default origin to current GPS location
+    this.setOriginToCurrentLocation(false);
+
+    // Origin Input Events
+    if (originInput) {
+      originInput.addEventListener('input', () => {
+        const val = originInput.value.trim();
+        if (btnOriginClear) btnOriginClear.style.display = val ? 'flex' : 'none';
+        if (btnOriginGps) btnOriginGps.classList.toggle('active', val.includes('ตำแหน่งปัจจุบัน') || val.includes('GPS'));
+        this.debouncePlaceSearch(val, 'origin');
+      });
+
+      originInput.addEventListener('focus', () => {
+        const val = originInput.value.trim();
+        if (val && !val.includes('ตำแหน่งปัจจุบัน')) {
+          this.debouncePlaceSearch(val, 'origin');
+        }
+      });
+    }
+
+    // Destination Input Events
+    if (destInput) {
+      destInput.addEventListener('input', () => {
+        const val = destInput.value.trim();
+        if (btnDestClear) btnDestClear.style.display = val ? 'flex' : 'none';
+        this.debouncePlaceSearch(val, 'dest');
+      });
+
+      destInput.addEventListener('focus', () => {
+        const val = destInput.value.trim();
+        if (val) {
+          this.debouncePlaceSearch(val, 'dest');
+        } else {
+          this.showQuickSuggestions('dest');
+        }
+      });
+    }
+
+    // Clear Origin Button
+    if (btnOriginClear && originInput) {
+      btnOriginClear.addEventListener('click', () => {
+        originInput.value = '';
+        this.selectedOriginCoords = null;
+        btnOriginClear.style.display = 'none';
+        if (btnOriginGps) btnOriginGps.classList.remove('active');
+        if (originSugList) originSugList.style.display = 'none';
+        originInput.focus();
+      });
+    }
+
+    // Reset Origin to GPS Button
+    if (btnOriginGps) {
+      btnOriginGps.addEventListener('click', () => {
+        this.setOriginToCurrentLocation(true);
+        if (originSugList) originSugList.style.display = 'none';
+      });
+    }
+
+    // Clear Dest Button
+    if (btnDestClear && destInput) {
+      btnDestClear.addEventListener('click', () => {
+        destInput.value = '';
+        this.selectedDestCoords = null;
+        btnDestClear.style.display = 'none';
+        if (destSugList) destSugList.style.display = 'none';
+        if (this.destPreviewMarker && window.mapManager?.map) {
+          window.mapManager.map.removeLayer(this.destPreviewMarker);
+          this.destPreviewMarker = null;
+        }
+        destInput.focus();
+      });
+    }
+
+    // Voice Search for Destination
+    if (btnDestVoice) {
+      btnDestVoice.addEventListener('click', () => {
+        this.startVoicePlaceSearch();
+      });
+    }
+
+    // Swap Origin & Destination
+    if (btnSwap && originInput && destInput) {
+      btnSwap.addEventListener('click', () => {
+        const tempText = originInput.value;
+        originInput.value = destInput.value;
+        destInput.value = tempText;
+
+        const tempCoords = this.selectedOriginCoords;
+        this.selectedOriginCoords = this.selectedDestCoords;
+        this.selectedDestCoords = tempCoords;
+
+        if (btnOriginClear) btnOriginClear.style.display = originInput.value ? 'flex' : 'none';
+        if (btnDestClear) btnDestClear.style.display = destInput.value ? 'flex' : 'none';
+        if (btnOriginGps) btnOriginGps.classList.toggle('active', originInput.value.includes('GPS') || originInput.value.includes('ตำแหน่งปัจจุบัน'));
+
+        this.showToast('🔄 สลับจุดเริ่มต้นและจุดหมายปลายทางแล้ว', 'info');
+      });
+    }
+
+    // Quick Category Chips
+    quickChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const category = chip.dataset.category;
+        quickChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        setTimeout(() => chip.classList.remove('active'), 1200);
+
+        if (category === 'map_pick') {
+          this.startPickOnMapMode('dest');
+        } else {
+          this.handleQuickCategorySelect(category);
+        }
+      });
+    });
+
+    // Close suggestions dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#route-origin-input') && !e.target.closest('#origin-suggestions')) {
+        if (originSugList) originSugList.style.display = 'none';
+      }
+      if (!e.target.closest('#route-dest-input') && !e.target.closest('#dest-suggestions') && !e.target.closest('.quick-place-chip')) {
+        if (destSugList) destSugList.style.display = 'none';
+      }
+    });
+  }
+
+  setOriginToCurrentLocation(showToastNotice = true) {
+    const originInput = document.getElementById('route-origin-input');
+    const btnOriginGps = document.getElementById('btn-origin-gps');
+    const btnOriginClear = document.getElementById('btn-origin-clear');
+
+    const userCoords = window.mapManager?.userCoords || { lat: 13.7563, lng: 100.5018 };
+    this.selectedOriginCoords = {
+      lat: userCoords.lat,
+      lng: userCoords.lng,
+      name: 'ตำแหน่งปัจจุบันของฉัน (GPS)'
+    };
+
+    if (originInput) {
+      originInput.value = '📍 ตำแหน่งปัจจุบันของฉัน (GPS)';
+    }
+    if (btnOriginGps) btnOriginGps.classList.add('active');
+    if (btnOriginClear) btnOriginClear.style.display = 'none';
+
+    if (showToastNotice) {
+      this.showToast('📍 กำหนดจุดเริ่มต้นเป็นตำแหน่งปัจจุบัน (GPS)', 'info');
+    }
+  }
+
+  debouncePlaceSearch(query, target = 'dest') {
+    const listEl = document.getElementById(target === 'origin' ? 'origin-suggestions' : 'dest-suggestions');
+    if (!listEl) return;
+
+    if (!query || query.trim() === '') {
+      listEl.style.display = 'none';
       return;
     }
 
-    let originCoords = null;
-    if (originVal === 'current') {
-      if (window.mapManager.userCoords) {
-        originCoords = window.mapManager.userCoords;
-      } else {
-        originCoords = { lat: 13.7563, lng: 100.5018 };
-      }
+    listEl.innerHTML = '<div style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 11px;"><i class="fa-solid fa-spinner fa-spin"></i> กำลังค้นหาสถานที่...</div>';
+    listEl.style.display = 'flex';
+
+    if (this.placeSearchDebounce) clearTimeout(this.placeSearchDebounce);
+    this.placeSearchDebounce = setTimeout(async () => {
+      if (!window.placeSearchManager) return;
+      const userCoords = window.mapManager?.userCoords || { lat: 13.7563, lng: 100.5018 };
+      const results = await window.placeSearchManager.search(query, userCoords);
+      this.renderSuggestions(results, target);
+    }, 260);
+  }
+
+  showQuickSuggestions(target = 'dest') {
+    const listEl = document.getElementById(target === 'origin' ? 'origin-suggestions' : 'dest-suggestions');
+    if (!listEl) return;
+
+    const quickItems = [
+      { name: '7/11 ใกล้เคียง (ร้านสะดวกซื้อ)', subtitle: 'ค้นหา 7-Eleven สาขาที่ใกล้ที่สุดรอบตัวคุณ', category: '7eleven', icon: 'fa-store', badgeColor: '#10b981', action: 'category_7eleven' },
+      { name: 'ปั๊มน้ำมันใกล้เคียง (ปตท., บางจาก ฯลฯ)', subtitle: 'ค้นหาปั๊มน้ำมันที่ใกล้ที่สุดพร้อมจุดพักรถ', category: 'gas', icon: 'fa-gas-pump', badgeColor: '#f59e0b', action: 'category_gas' },
+      { name: 'สถานที่ท่องเที่ยวยอดนิยมทั่วไทย', subtitle: 'สยามพารากอน, วัดพระแก้ว, พัทยา, เขาใหญ่ ฯลฯ', category: 'attraction', icon: 'fa-umbrella-beach', badgeColor: '#06b6d4', action: 'category_attraction' },
+      { name: 'คาเฟ่ / Cafe Amazon ใกล้ฉัน', subtitle: 'ร้านกาแฟและจุดแวะพักระหว่างทาง', category: 'cafe', icon: 'fa-mug-saucer', badgeColor: '#ec4899', action: 'category_cafe' },
+      { name: 'จุดชาร์จรถยนต์ไฟฟ้า (EV Charger)', subtitle: 'EV Station PluZ, PEA Volta ชาร์จเร็ว', category: 'ev', icon: 'fa-bolt', badgeColor: '#3b82f6', action: 'category_ev' },
+      { name: 'เลือกจุดหมายโดยแตะบนแผนที่...', subtitle: 'คลิกจุดใดก็ได้บนแผนที่เพื่อนำทาง', category: 'map', icon: 'fa-map-pin', badgeColor: '#ef4444', action: 'pick_map' }
+    ];
+
+    listEl.innerHTML = quickItems.map(item => `
+      <div class="route-suggestion-item" data-action="${item.action}" data-name="${item.name}">
+        <div class="suggestion-icon-wrap" style="background: ${item.badgeColor}20; color: ${item.badgeColor};">
+          <i class="fa-solid ${item.icon}"></i>
+        </div>
+        <div class="suggestion-text-wrap">
+          <span class="suggestion-title">${item.name}</span>
+          <span class="suggestion-sub">${item.subtitle}</span>
+        </div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.route-suggestion-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const action = el.dataset.action;
+        if (action === 'pick_map') {
+          listEl.style.display = 'none';
+          this.startPickOnMapMode(target);
+        } else if (action && action.startsWith('category_')) {
+          const cat = action.replace('category_', '');
+          this.handleQuickCategorySelect(cat);
+        }
+      });
+    });
+
+    listEl.style.display = 'flex';
+  }
+
+  async handleQuickCategorySelect(category) {
+    const destInput = document.getElementById('route-dest-input');
+    const destSugList = document.getElementById('dest-suggestions');
+    if (!destInput || !destSugList || !window.placeSearchManager) return;
+
+    const userCoords = window.mapManager?.userCoords || { lat: 13.7563, lng: 100.5018 };
+    destSugList.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--neon-cyan); font-size: 12px;"><i class="fa-solid fa-spinner fa-spin"></i> กำลังค้นหาสถานที่ใกล้เคียง...</div>';
+    destSugList.style.display = 'flex';
+
+    const categoryTitles = {
+      '7eleven': '7/11 ใกล้เคียง',
+      'gas': 'ปั้มน้ำมันใกล้เคียง',
+      'attraction': 'สถานที่ท่องเที่ยวยอดนิยม',
+      'cafe': 'คาเฟ่ / อเมซอน ใกล้เคียง',
+      'ev': 'จุดชาร์จ EV ใกล้เคียง'
+    };
+    destInput.value = categoryTitles[category] || '';
+    const btnDestClear = document.getElementById('btn-dest-clear');
+    if (btnDestClear) btnDestClear.style.display = 'flex';
+
+    const results = await window.placeSearchManager.getQuickCategory(category, userCoords);
+    this.renderSuggestions(results, 'dest');
+  }
+
+  startPickOnMapMode(target = 'dest') {
+    this.isPickingMapLocation = true;
+    this.mapPickTarget = target;
+
+    // Switch to map view so user can tap
+    if (window.deviceManager && window.deviceManager.isMobileView) {
+      window.deviceManager.closeMobileSheet(false);
+    }
+
+    const mapContainer = document.getElementById('map');
+    if (mapContainer) mapContainer.style.cursor = 'crosshair';
+
+    this.showToast('🗺️ แตะจุดใดก็ได้บนแผนที่เพื่อเลือกตำแหน่ง', 'info');
+
+    // Show floating cancel banner on map if not present
+    let banner = document.getElementById('map-pick-indicator-bar');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'map-pick-indicator-bar';
+      banner.className = 'map-pick-indicator-bar';
+      banner.style.cssText = 'position: fixed; top: calc(var(--header-height) + 12px); left: 50%; transform: translateX(-50%); z-index: 1500; display: flex; align-items: center; gap: 10px; background: rgba(15, 23, 42, 0.95); border: 2px solid var(--neon-cyan); padding: 8px 16px; border-radius: 30px; color: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 8px 25px rgba(0,0,0,0.6);';
+      banner.innerHTML = `
+        <i class="fa-solid fa-map-pin" style="color: var(--neon-cyan);"></i>
+        <span>แตะบนแผนที่เพื่อเลือกจุดหมาย</span>
+        <button id="btn-cancel-map-pick-banner" style="background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 11px; cursor: pointer;">ยกเลิก</button>
+      `;
+      document.body.appendChild(banner);
+
+      document.getElementById('btn-cancel-map-pick-banner').addEventListener('click', () => {
+        this.cancelPickOnMapMode();
+      });
     } else {
-      const origProv = window.THAILAND_PROVINCES.find(p => p.id === originVal);
-      if (origProv) originCoords = { lat: origProv.lat, lng: origProv.lng };
+      banner.style.display = 'flex';
     }
 
-    let destCoords = null;
-    const destProv = window.THAILAND_PROVINCES.find(p => p.id === destVal);
-    if (destProv) {
-      destCoords = { lat: destProv.lat, lng: destProv.lng };
+    // Set callback on mapManager
+    window.mapManager.onMapClickCallback = async (latlng) => {
+      if (this.isPickingMapLocation) {
+        this.handleMapLocationPicked(latlng.lat, latlng.lng);
+      } else {
+        this.openReportModalWithCoords(latlng.lat, latlng.lng);
+      }
+    };
+  }
+
+  async handleMapLocationPicked(lat, lng) {
+    this.cancelPickOnMapMode();
+
+    let placeName = `พิกัด ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    try {
+      if (window.locationManager) {
+        const loc = await window.locationManager.reverseGeocode(lat, lng, true);
+        if (loc) {
+          const road = loc.road ? `${loc.road}, ` : '';
+          placeName = `${road}${loc.district || ''} ${loc.province || ''}`.trim() || placeName;
+        }
+      }
+    } catch (e) {}
+
+    if (this.mapPickTarget === 'origin') {
+      const originInput = document.getElementById('route-origin-input');
+      if (originInput) originInput.value = `📍 ${placeName}`;
+      this.selectedOriginCoords = { lat, lng, name: placeName };
+      const btnOriginClear = document.getElementById('btn-origin-clear');
+      if (btnOriginClear) btnOriginClear.style.display = 'flex';
+      const btnGps = document.getElementById('btn-origin-gps');
+      if (btnGps) btnGps.classList.remove('active');
+    } else {
+      const destInput = document.getElementById('route-dest-input');
+      if (destInput) destInput.value = `🏁 ${placeName}`;
+      this.selectedDestCoords = { lat, lng, name: placeName };
+      const btnDestClear = document.getElementById('btn-dest-clear');
+      if (btnDestClear) btnDestClear.style.display = 'flex';
+      this.previewDestinationMarker(lat, lng, placeName);
     }
 
-    if (!originCoords || !destCoords) {
-      this.showToast('⚠️ ไม่สามารถระบุพิกัดเส้นทางได้', 'warning');
+    // If on mobile, expand the sheet back to route
+    if (window.deviceManager && window.deviceManager.isMobileView) {
+      window.deviceManager.openMobileSheet('route');
+    }
+
+    this.showToast(`📍 กำหนดตำแหน่งสำเร็จ: ${placeName}`, 'success');
+  }
+
+  cancelPickOnMapMode() {
+    this.isPickingMapLocation = false;
+    const mapContainer = document.getElementById('map');
+    if (mapContainer) mapContainer.style.cursor = '';
+    const banner = document.getElementById('map-pick-indicator-bar');
+    if (banner) banner.style.display = 'none';
+
+    // Restore standard report click callback
+    window.mapManager.onMapClickCallback = (latlng) => {
+      this.openReportModalWithCoords(latlng.lat, latlng.lng);
+    };
+  }
+
+  renderSuggestions(results, target = 'dest') {
+    const listEl = document.getElementById(target === 'origin' ? 'origin-suggestions' : 'dest-suggestions');
+    const inputEl = document.getElementById(target === 'origin' ? 'route-origin-input' : 'route-dest-input');
+    if (!listEl) return;
+
+    if (!results || results.length === 0) {
+      listEl.innerHTML = `
+        <div style="padding: 14px; text-align: center; color: var(--text-muted); font-size: 12px;">
+          <i class="fa-solid fa-magnifying-glass" style="margin-bottom: 4px; display: block;"></i>
+          ไม่พบสถานที่ตรงกับคำค้นหา
+          <div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;">กด "เลือกจากแผนที่" หรือพิมพ์ชื่อสถานที่ท่องเที่ยว/จังหวัดได้ค่ะ</div>
+        </div>
+      `;
+      listEl.style.display = 'flex';
+      return;
+    }
+
+    listEl.innerHTML = results.map(item => {
+      const distBadge = item.distanceKm !== undefined && item.distanceKm !== null
+        ? `<span class="suggestion-dist-badge">${window.placeSearchManager?.formatDistance(item.distanceKm) || ''}</span>`
+        : '';
+      const color = item.badgeColor || '#38bdf8';
+
+      return `
+        <div class="route-suggestion-item" data-lat="${item.lat}" data-lng="${item.lng}" data-name="${item.name}">
+          <div class="suggestion-icon-wrap" style="background: ${color}20; color: ${color};">
+            <i class="fa-solid ${item.icon || 'fa-location-dot'}"></i>
+          </div>
+          <div class="suggestion-text-wrap">
+            <span class="suggestion-title">${item.name}</span>
+            <span class="suggestion-sub">${item.subtitle || ''}</span>
+          </div>
+          ${distBadge}
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.route-suggestion-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const lat = parseFloat(el.dataset.lat);
+        const lng = parseFloat(el.dataset.lng);
+        const name = el.dataset.name;
+
+        if (target === 'origin') {
+          inputEl.value = name;
+          this.selectedOriginCoords = { lat, lng, name };
+          const btnClear = document.getElementById('btn-origin-clear');
+          if (btnClear) btnClear.style.display = 'flex';
+          const btnGps = document.getElementById('btn-origin-gps');
+          if (btnGps) btnGps.classList.remove('active');
+        } else {
+          inputEl.value = name;
+          this.selectedDestCoords = { lat, lng, name };
+          const btnClear = document.getElementById('btn-dest-clear');
+          if (btnClear) btnClear.style.display = 'flex';
+          this.previewDestinationMarker(lat, lng, name);
+        }
+
+        listEl.style.display = 'none';
+      });
+    });
+
+    listEl.style.display = 'flex';
+  }
+
+  previewDestinationMarker(lat, lng, name) {
+    if (!window.mapManager || !window.mapManager.map) return;
+    if (this.destPreviewMarker) {
+      window.mapManager.map.removeLayer(this.destPreviewMarker);
+      this.destPreviewMarker = null;
+    }
+
+    const icon = L.divIcon({
+      className: 'dest-preview-icon',
+      html: `
+        <div style="background: #ef4444; color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); border: 2px solid #fff; font-size: 15px;">
+          <i class="fa-solid fa-flag-checkered"></i>
+        </div>
+      `,
+      iconSize: [34, 34],
+      iconAnchor: [17, 34]
+    });
+
+    this.destPreviewMarker = L.marker([lat, lng], { icon })
+      .addTo(window.mapManager.map)
+      .bindPopup(`<div style="font-weight: 700; color: #0b0f19;">🏁 ${name}</div>`)
+      .openPopup();
+
+    window.mapManager.map.panTo([lat, lng]);
+  }
+
+  startVoicePlaceSearch() {
+    const destInput = document.getElementById('route-dest-input');
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      this.showToast('⚠️ เบราว์เซอร์นี้ไม่รองรับการค้นหาด้วยเสียง', 'warning');
+      return;
+    }
+
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRec();
+    recognition.lang = 'th-TH';
+    recognition.interimResults = false;
+
+    this.showToast('🎙️ กำลังฟัง... พูดชื่อสถานที่ เช่น "7-Eleven ใกล้เคียง", "ปั๊มน้ำมัน", "สยามพารากอน"', 'info');
+    const btnVoice = document.getElementById('btn-dest-voice');
+    if (btnVoice) btnVoice.classList.add('active');
+
+    recognition.onresult = (event) => {
+      const speechText = event.results[0][0].transcript;
+      if (btnVoice) btnVoice.classList.remove('active');
+      if (destInput) {
+        destInput.value = speechText;
+        const btnClear = document.getElementById('btn-dest-clear');
+        if (btnClear) btnClear.style.display = 'flex';
+        this.debouncePlaceSearch(speechText, 'dest');
+      }
+      this.showToast(`🗣️ ค้นหา: "${speechText}"`, 'success');
+    };
+
+    recognition.onerror = () => {
+      if (btnVoice) btnVoice.classList.remove('active');
+      this.showToast('⚠️ ไม่ได้ยินเสียงพูด กรุณาลองใหม่อีกครั้งค่ะ', 'warning');
+    };
+
+    recognition.onend = () => {
+      if (btnVoice) btnVoice.classList.remove('active');
+    };
+
+    recognition.start();
+  }
+
+  // Handle Route Calculation & Checkpoint Scanning
+  async handleCalculateRoute() {
+    const originInput = document.getElementById('route-origin-input');
+    const destInput = document.getElementById('route-dest-input');
+    const btnCalc = document.getElementById('btn-calculate-route');
+
+    let originText = originInput ? originInput.value.trim() : '';
+    let destText = destInput ? destInput.value.trim() : '';
+
+    if (!destText) {
+      this.showToast('⚠️ กรุณาพิมพ์หรือเลือกจุดหมายปลายทาง (เช่น 7/11ใกล้เคียง, ปั้มน้ำมัน, สยามพารากอน)', 'warning');
+      if (destInput) destInput.focus();
       return;
     }
 
     if (btnCalc) {
       btnCalc.disabled = true;
-      btnCalc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังคำนวณเส้นทาง & สแกนด่าน...';
+      btnCalc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังค้นหาพิกัด & คำนวณเส้นทาง...';
     }
 
     try {
+      // 1. Resolve Origin Coordinates
+      let originCoords = this.selectedOriginCoords;
+      if (!originCoords || originText.includes('ตำแหน่งปัจจุบัน') || originText.includes('GPS')) {
+        if (window.mapManager?.userCoords) {
+          originCoords = { lat: window.mapManager.userCoords.lat, lng: window.mapManager.userCoords.lng, name: 'ตำแหน่งปัจจุบัน (GPS)' };
+        } else {
+          originCoords = { lat: 13.7563, lng: 100.5018, name: 'กรุงเทพมหานคร' };
+        }
+      } else if (!originCoords.lat || !originCoords.lng) {
+        originCoords = await window.placeSearchManager.resolveBestCoordinate(originText);
+      }
+
+      // 2. Resolve Destination Coordinates
+      let destCoords = this.selectedDestCoords;
+      if (!destCoords || !destCoords.lat || !destCoords.lng) {
+        destCoords = await window.placeSearchManager.resolveBestCoordinate(destText, originCoords);
+      }
+
+      if (!destCoords || !destCoords.lat || !destCoords.lng) {
+        this.showToast(`⚠️ ไม่พบพิกัดของ "${destText}" กรุณาเลือกจากรายการแนะนำหรือจิ้มบนแผนที่`, 'warning');
+        if (destInput) destInput.focus();
+        return;
+      }
+
+      // 3. Compute Route via RouteManager
       const result = await window.routeManager.calculateRoute(originCoords, destCoords, this.checkpoints);
       window.routeManager.drawRouteOnMap(window.mapManager.map);
       this.renderRouteResults(result);
       window.soundManager.playSuccess();
 
       const count = (result.detectedCheckpoints || []).length;
+      const destDisplayName = destCoords.name || destText;
       if (count > 0) {
-        window.voiceManager.speak(`คำนวณเส้นทางเรียบร้อย ระยะทาง ${Math.round(result.distanceKm)} กิโลเมตร ตรวจพบด่านตรวจตลอดสายทาง ${count} จุดค่ะ`);
+        window.voiceManager.speak(`สแกนเส้นทางสู่ ${destDisplayName} เรียบร้อย ระยะทาง ${Math.round(result.distanceKm)} กิโลเมตร ตรวจพบด่านตรวจตลอดสายทาง ${count} จุดค่ะ`);
       } else {
-        window.voiceManager.speak(`คำนวณเส้นทางเรียบร้อย ระยะทาง ${Math.round(result.distanceKm)} กิโลเมตร ไม่พบจุดตรวจด่านตลอดสายทาง ขอให้เดินทางโดยสวัสดิภาพค่ะ`);
+        window.voiceManager.speak(`สแกนเส้นทางสู่ ${destDisplayName} เรียบร้อย ระยะทาง ${Math.round(result.distanceKm)} กิโลเมตร ไม่พบจุดตรวจด่านตลอดสายทาง ขอให้เดินทางโดยสวัสดิภาพค่ะ`);
       }
 
-      this.showToast(`🚗 คำนวณเส้นทางสำเร็จ! ระยะทาง ${result.distanceKm.toFixed(1)} กม.`, 'success');
+      this.showToast(`🚗 คำนวณเส้นทางสู่ ${destDisplayName} สำเร็จ! (${result.distanceKm.toFixed(1)} กม.)`, 'success');
+
     } catch (err) {
       console.error('Routing calculation failed:', err);
       this.showToast('❌ ไม่สามารถคำนวณเส้นทางได้ กรุณาลองใหม่อีกครั้ง', 'error');
@@ -1302,7 +1897,14 @@ class CheckDanApp {
           this.closeAllModals();
           this.showToast('🎉 ยินดีต้อนรับ ผู้ดูแลระบบ (Admin Mode Active)', 'success');
           window.soundManager.playSuccess();
-          this.openGitHubModal();
+          if (this.pendingAdminAction === 'open_install_analytics') {
+            this.pendingAdminAction = null;
+            if (window.installTracker) {
+              window.installTracker.showInstallAnalyticsModal();
+            }
+          } else {
+            this.openGitHubModal();
+          }
         } else {
           if (errDiv) errDiv.style.display = 'block';
           window.soundManager.playWarningAlert();
@@ -1841,6 +2443,251 @@ class CheckDanApp {
     } catch (err) {
       console.warn('API Sync Error:', err);
       this.showToast(`❌ เชื่อมต่อ API ล้มเหลว: ${err.message} (ตรวจสอบ CORS หรือ URL)`, 'warning');
+    }
+  }
+
+  // ==========================================================================
+  // Tourist Attractions & Travel Companion Integration
+  // ==========================================================================
+  initAttractionsTab() {
+    const provSelect = document.getElementById('attraction-province-select');
+    const searchInput = document.getElementById('attractions-search-input');
+    const btnClear = document.getElementById('btn-attraction-search-clear');
+    const chipsWrapper = document.getElementById('attraction-category-chips');
+    const btnNearby = document.getElementById('btn-nearby-attractions');
+    const btnToggleMap = document.getElementById('btn-sidebar-toggle-attractions-map');
+    const btnMapFloating = document.getElementById('btn-toggle-attractions');
+
+    // Province change
+    if (provSelect) {
+      provSelect.addEventListener('change', () => {
+        if (window.attractionsManager) {
+          window.attractionsManager.selectedProvince = provSelect.value;
+        }
+        this.renderAttractionsList();
+      });
+    }
+
+    // Live search input
+    if (searchInput) {
+      let debounceTimer = null;
+      searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (btnClear) btnClear.style.display = val ? 'flex' : 'none';
+
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          if (window.attractionsManager) {
+            window.attractionsManager.searchQuery = val;
+          }
+          this.renderAttractionsList();
+        }, 250);
+      });
+    }
+
+    if (btnClear && searchInput) {
+      btnClear.addEventListener('click', () => {
+        searchInput.value = '';
+        btnClear.style.display = 'none';
+        if (window.attractionsManager) {
+          window.attractionsManager.searchQuery = '';
+        }
+        this.renderAttractionsList();
+      });
+    }
+
+    // Category filter chips
+    if (chipsWrapper) {
+      chipsWrapper.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          chipsWrapper.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          const cat = chip.dataset.cat || 'all';
+          if (window.attractionsManager) {
+            window.attractionsManager.activeFilter = cat;
+          }
+          this.renderAttractionsList();
+        });
+      });
+    }
+
+    // Nearby attractions button
+    if (btnNearby) {
+      btnNearby.addEventListener('click', () => {
+        const userCoords = window.mapManager?.userCoords;
+        if (!userCoords) {
+          this.showToast('📍 กำลังค้นหาพิกัด GPS ปัจจุบันของคุณ...', 'info');
+          this.requestUserLocation(true);
+        }
+
+        if (window.attractionsManager) {
+          window.attractionsManager.selectedProvince = 'all';
+          window.attractionsManager.searchQuery = '';
+          if (provSelect) provSelect.value = 'all';
+          if (searchInput) searchInput.value = '';
+          if (btnClear) btnClear.style.display = 'none';
+        }
+
+        const nearbyList = window.attractionsManager ? window.attractionsManager.getNearby(120, userCoords) : [];
+        this.renderAttractionsList(nearbyList);
+        this.showToast(`🧭 พบแหล่งท่องเที่ยวใกล้เคียง ${nearbyList.length} แห่งในรัศมีของคุณ`, 'success');
+        if (window.voiceManager) {
+          window.voiceManager.speak(`พบแหล่งท่องเที่ยวใกล้เคียง ${nearbyList.length} แห่งค่ะ ที่ใกล้ที่สุดคือ ${nearbyList[0]?.name || ''}`);
+        }
+      });
+    }
+
+    // Toggle layer buttons
+    const handleToggleMap = () => {
+      if (!window.attractionsManager) return;
+      const isVisible = window.attractionsManager.toggleLayer();
+      if (btnToggleMap) {
+        btnToggleMap.classList.toggle('active', isVisible);
+        btnToggleMap.innerHTML = isVisible ? '<i class="fa-solid fa-eye-slash"></i> ซ่อนหมุดบนแผนที่' : '<i class="fa-solid fa-map-pin"></i> แสดงหมุดบนแผนที่';
+      }
+      if (btnMapFloating) {
+        btnMapFloating.classList.toggle('active', isVisible);
+      }
+      this.showToast(isVisible ? '🗺️ แสดงหมุดแหล่งท่องเที่ยว 77 จังหวัดบนแผนที่แล้ว' : 'ซ่อนหมุดแหล่งท่องเที่ยวบนแผนที่แล้ว', 'info');
+    };
+
+    if (btnToggleMap) btnToggleMap.addEventListener('click', handleToggleMap);
+    if (btnMapFloating) btnMapFloating.addEventListener('click', handleToggleMap);
+
+    // Initial render of attractions list
+    this.renderAttractionsList();
+  }
+
+  renderAttractionsList(customList = null) {
+    const listContainer = document.getElementById('attractions-cards-list');
+    const countLabel = document.getElementById('attractions-count-label');
+    const emptyState = document.getElementById('attractions-empty-state');
+    if (!listContainer || !window.attractionsManager) return;
+
+    const mgr = window.attractionsManager;
+    const userCoords = window.mapManager?.userCoords;
+    const items = customList !== null ? customList : mgr.search(mgr.searchQuery, mgr.activeFilter, mgr.selectedProvince, userCoords);
+
+    // Update count label
+    if (countLabel) {
+      countLabel.textContent = `พบแหล่งท่องเที่ยว ${items.length} แห่ง`;
+    }
+
+    if (emptyState) {
+      emptyState.style.display = items.length === 0 ? 'flex' : 'none';
+    }
+
+    // Sync markers with map if layer is currently active
+    if (mgr.isLayerVisible && window.mapManager?.map) {
+      mgr.renderOnMap(items);
+    }
+
+    if (items.length === 0) {
+      listContainer.innerHTML = '';
+      return;
+    }
+
+    const catBadgeClass = {
+      nature: 'nature',
+      beach: 'beach',
+      temple: 'temple',
+      landmark: 'landmark',
+      market: 'market',
+      cafe: 'cafe'
+    };
+
+    const catIcons = {
+      nature: 'fa-mountain-sun',
+      beach: 'fa-umbrella-beach',
+      temple: 'fa-vihara',
+      landmark: 'fa-landmark-dome',
+      market: 'fa-store',
+      cafe: 'fa-mug-saucer'
+    };
+
+    listContainer.innerHTML = items.map(item => {
+      const bClass = catBadgeClass[item.category] || 'landmark';
+      const icon = catIcons[item.category] || 'fa-location-dot';
+      const distStr = item.distanceKm !== undefined ? `~${item.distanceKm.toFixed(1)} กม.` : '';
+
+      return `
+        <div class="attraction-card" onclick="window.attractionsManager.focusAttraction(${item.lat}, ${item.lng})">
+          <div class="attraction-card-header">
+            <div>
+              <h4 class="attraction-title">${item.name}</h4>
+              <div style="font-size: 11px; color: #94a3b8;">${item.nameEn}</div>
+            </div>
+            <span class="attraction-cat-badge ${bClass}">
+              <i class="fa-solid ${icon}"></i> ${item.categoryLabel}
+            </span>
+          </div>
+
+          <p class="attraction-desc">${item.desc}</p>
+
+          ${item.highlight ? `
+            <div class="attraction-highlight-row">
+              <i class="fa-solid fa-star" style="font-size: 10px;"></i>
+              <span><b>ไฮไลต์:</b> ${item.highlight}</span>
+            </div>
+          ` : ''}
+
+          <div class="attraction-meta-row">
+            <span><i class="fa-solid fa-location-dot" style="color: var(--neon-cyan);"></i> จ.${item.province}</span>
+            <span><i class="fa-solid fa-ticket"></i> ${item.fee || 'เข้าชมฟรี'}</span>
+            ${distStr ? `<span style="color: #38bdf8; font-weight: 700;">${distStr}</span>` : ''}
+          </div>
+
+          <div class="attraction-actions-row" onclick="event.stopPropagation();">
+            <button class="btn-attraction-nav" onclick="window.attractionsManager.navigateToAttraction(${item.lat}, ${item.lng}, '${item.name.replace(/'/g, "\\'")}')" title="เริ่มนำทางเลี้ยวต่อเลี้ยว">
+              <i class="fa-solid fa-diamond-turn-right"></i> นำทางทันที
+            </button>
+            <button class="btn-attraction-route" onclick="window.attractionsManager.setAsRouteDest(${item.lat}, ${item.lng}, '${item.name.replace(/'/g, "\\'")}')" title="คำนวณเส้นทางและสแกนด่าน">
+              <i class="fa-solid fa-route"></i> สแกนทาง
+            </button>
+            <button class="btn-attraction-route" onclick="window.attractionsManager.focusAttraction(${item.lat}, ${item.lng})" title="ปักหมุดบนแผนที่">
+              <i class="fa-solid fa-map-pin"></i> ดูแผนที่
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ==========================================================================
+  // App Install Tracker & Analytics Integration
+  // ==========================================================================
+  initInstallTracker() {
+    const badgeCountText = document.getElementById('header-install-count-text');
+    const btnBadge = document.getElementById('btn-header-install-analytics');
+
+    const updateInstallCountUI = (stats) => {
+      if (badgeCountText && stats) {
+        if (stats.isStandalone || stats.isInstalledPwa) {
+          badgeCountText.textContent = `PWA ติดตั้งแล้ว (#${stats.sessionCount || 1})`;
+        } else {
+          badgeCountText.textContent = `อุปกรณ์จริง (#${stats.sessionCount || 1})`;
+        }
+      }
+    };
+
+    if (window.installTracker) {
+      updateInstallCountUI(window.installTracker.stats);
+    }
+
+    window.addEventListener('installStatsUpdated', (e) => {
+      updateInstallCountUI(e.detail);
+    });
+
+    if (btnBadge) {
+      btnBadge.addEventListener('click', () => {
+        if (this.isAdmin) {
+          if (window.installTracker) window.installTracker.showInstallAnalyticsModal();
+        } else {
+          this.pendingAdminAction = 'open_install_analytics';
+          this.openAdminLoginModal();
+          this.showToast('🔒 กรุณาเข้าสู่ระบบ Admin เพื่อดูรายงานข้อมูลอุปกรณ์และการติดตั้งจริง', 'info');
+        }
+      });
     }
   }
 }

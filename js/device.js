@@ -273,6 +273,7 @@ class DeviceManager {
   }
 
   switchMobileTab(tab) {
+    const prevTab = this.activeMobileTab;
     this.activeMobileTab = tab;
 
     // Update bottom nav button active states
@@ -280,21 +281,40 @@ class DeviceManager {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     });
 
+    // If leaving HUD mode, cleanly close it
+    if (tab !== 'hud' && window.hudManager && window.hudManager.isActive) {
+      window.hudManager.closeHUD(false, false);
+    }
+
+    // If leaving SOS modal, close it
+    if (tab !== 'sos' && window.sosManager) {
+      window.sosManager.closeSOSModal();
+    }
+
     if (tab === 'map') {
-      this.closeMobileSheet();
+      this.closeMobileSheet(true);
       // Ensure map fits nicely
       if (window.mapManager && window.mapManager.map) {
         setTimeout(() => window.mapManager.map.invalidateSize(), 300);
       }
     } else if (tab === 'checkpoints') {
       this.openMobileSheet('checkpoints');
+    } else if (tab === 'attractions') {
+      this.openMobileSheet('attractions');
     } else if (tab === 'route') {
       this.openMobileSheet('route');
     } else if (tab === 'hud') {
       if (window.hudManager) {
-        window.hudManager.openHUD();
+        if (prevTab === 'hud' && window.hudManager.isActive) {
+          // If already in HUD and user taps 'hud' tab again, toggle back to map
+          window.hudManager.closeHUD(true);
+        } else {
+          this.closeMobileSheet(false);
+          window.hudManager.openHUD();
+        }
       }
     } else if (tab === 'sos') {
+      this.closeMobileSheet(false);
       if (window.sosManager) {
         window.sosManager.openSOSModal();
       } else {
@@ -317,20 +337,34 @@ class DeviceManager {
 
     // Switch view inside sidebar
     const tabBtnCheckpoints = document.getElementById('tab-btn-checkpoints');
+    const tabBtnAttractions = document.getElementById('tab-btn-attractions');
     const tabBtnRoute = document.getElementById('tab-btn-route');
     const viewCheckpoints = document.getElementById('view-checkpoints');
+    const viewAttractions = document.getElementById('view-attractions');
     const viewRoute = document.getElementById('view-route');
 
     if (viewType === 'checkpoints') {
       if (tabBtnCheckpoints) tabBtnCheckpoints.classList.add('active');
+      if (tabBtnAttractions) tabBtnAttractions.classList.remove('active');
       if (tabBtnRoute) tabBtnRoute.classList.remove('active');
       if (viewCheckpoints) viewCheckpoints.classList.add('active');
+      if (viewAttractions) viewAttractions.classList.remove('active');
       if (viewRoute) viewRoute.classList.remove('active');
       if (sheetTitle) sheetTitle.innerHTML = '<i class="fa-solid fa-shield-halved" style="color: var(--neon-cyan);"></i> รายการจุดตรวจด่าน';
+    } else if (viewType === 'attractions') {
+      if (tabBtnCheckpoints) tabBtnCheckpoints.classList.remove('active');
+      if (tabBtnAttractions) tabBtnAttractions.classList.add('active');
+      if (tabBtnRoute) tabBtnRoute.classList.remove('active');
+      if (viewCheckpoints) viewCheckpoints.classList.remove('active');
+      if (viewAttractions) viewAttractions.classList.add('active');
+      if (viewRoute) viewRoute.classList.remove('active');
+      if (sheetTitle) sheetTitle.innerHTML = '<i class="fa-solid fa-umbrella-beach" style="color: #fbbf24;"></i> แหล่งท่องเที่ยว 77 จังหวัด';
     } else if (viewType === 'route') {
       if (tabBtnCheckpoints) tabBtnCheckpoints.classList.remove('active');
+      if (tabBtnAttractions) tabBtnAttractions.classList.remove('active');
       if (tabBtnRoute) tabBtnRoute.classList.add('active');
       if (viewCheckpoints) viewCheckpoints.classList.remove('active');
+      if (viewAttractions) viewAttractions.classList.remove('active');
       if (viewRoute) viewRoute.classList.add('active');
       if (sheetTitle) sheetTitle.innerHTML = '<i class="fa-solid fa-route" style="color: var(--neon-cyan);"></i> วางแผนเส้นทาง & สแกนด่าน';
     }
@@ -341,15 +375,15 @@ class DeviceManager {
     });
   }
 
-  closeMobileSheet() {
+  closeMobileSheet(resetToMap = true) {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
     this.isSheetOpen = false;
     sidebar.classList.remove('mobile-sheet-expanded');
 
-    // Reset bottom nav active to 'map' if in mobile view
-    if (this.isMobileView) {
+    // Reset bottom nav active to 'map' only if requested and not in HUD or SOS mode
+    if (resetToMap && this.isMobileView && this.activeMobileTab !== 'hud' && this.activeMobileTab !== 'sos') {
       document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === 'map');
       });

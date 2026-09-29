@@ -73,10 +73,11 @@ class GitHubSyncManager {
       return cached;
     }
 
-    // Fallback to initial mock data
-    if (window.INITIAL_CHECKPOINTS) {
-      this.saveLocalCache(window.INITIAL_CHECKPOINTS);
-      return window.INITIAL_CHECKPOINTS;
+    // Fallback to initial checkpoints data
+    const initialData = window.INITIAL_CHECKPOINTS || window.MOCK_CHECKPOINTS;
+    if (initialData && Array.isArray(initialData) && initialData.length > 0) {
+      this.saveLocalCache(initialData);
+      return initialData;
     }
 
     return [];
@@ -193,9 +194,10 @@ class GitHubSyncManager {
 
   resetToDefault() {
     localStorage.removeItem(this.storageKey);
-    if (window.INITIAL_CHECKPOINTS) {
-      this.saveLocalCache(window.INITIAL_CHECKPOINTS);
-      return window.INITIAL_CHECKPOINTS;
+    const initialData = window.INITIAL_CHECKPOINTS || window.MOCK_CHECKPOINTS;
+    if (initialData && Array.isArray(initialData)) {
+      this.saveLocalCache(initialData);
+      return initialData;
     }
     return [];
   }
