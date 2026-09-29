@@ -386,6 +386,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   display: none;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .tab-view.active {
@@ -400,6 +401,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   background: rgba(0, 0, 0, 0.25);
   border-bottom: 1px solid var(--border-subtle);
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .stat-item {
@@ -436,6 +438,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
 /* Province Selector */
 .province-filter-row {
   padding: 10px 16px 4px;
+  flex-shrink: 0;
 }
 
 .province-select-wrapper {
@@ -483,6 +486,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
 /* Search Box */
 .sidebar-search-box {
   padding: 8px 16px;
+  flex-shrink: 0;
 }
 
 .search-input-wrapper {
@@ -525,6 +529,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   padding: 4px 16px 10px;
   overflow-x: auto;
   scrollbar-width: none;
+  flex-shrink: 0;
 }
 
 .filter-chips-wrapper::-webkit-scrollbar {
@@ -568,12 +573,14 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   font-size: 12px;
   color: var(--text-muted);
   border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
 /* Cards Scroll Container */
 .checkpoint-cards-container {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
   padding: 10px 16px 20px;
   display: flex;
   flex-direction: column;
@@ -592,6 +599,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
    Checkpoint Card
    ========================================================================== */
 .checkpoint-card {
+  flex-shrink: 0;
   background: var(--bg-card);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -790,10 +798,12 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+  min-height: 0;
   flex: 1;
 }
 
 .route-inputs-card {
+  flex-shrink: 0;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -860,6 +870,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .section-label {
@@ -909,7 +920,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 8px;
   box-shadow: 0 0 20px rgba(0, 242, 254, 0.35);
   transition: all 0.2s ease;
@@ -922,6 +933,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
 
 /* Route Result Summary Card */
 .route-summary-card {
+  flex-shrink: 0;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-highlight);
   border-radius: var(--radius-md);
@@ -989,6 +1001,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
 }
 
 .route-checkpoint-item {
+  flex-shrink: 0;
   background: rgba(0, 0, 0, 0.25);
   border-left: 3px solid var(--neon-red);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
@@ -1246,6 +1259,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
 }
 
 .sos-card {
+  flex-shrink: 0;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -3153,6 +3167,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
 .nav-route-steps-scroll {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
   padding: 14px 20px 24px;
   display: flex;
   flex-direction: column;
@@ -3160,6 +3175,7 @@ h1, h2, h3, h4, h5, h6, .brand-title, .btn, .card-type-badge, .stat-value, .tab-
 }
 
 .nav-step-card {
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
